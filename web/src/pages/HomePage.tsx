@@ -57,6 +57,17 @@ export default function HomePage() {
       }
 
       build()
+
+      const onWheel = (e: WheelEvent) => {
+        if (tween && tween.scrollTrigger && tween.scrollTrigger.isActive) {
+          if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+            e.preventDefault()
+            window.scrollBy(0, e.deltaX)
+          }
+        }
+      }
+      root.addEventListener('wheel', onWheel, { passive: false })
+
       const onResize = () => {
         build()
         ScrollTrigger.refresh()
@@ -65,6 +76,7 @@ export default function HomePage() {
 
       return () => {
         window.removeEventListener('resize', onResize)
+        root.removeEventListener('wheel', onWheel)
         tween?.scrollTrigger?.kill()
         tween?.kill()
       }
