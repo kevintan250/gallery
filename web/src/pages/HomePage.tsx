@@ -174,12 +174,12 @@ export default function HomePage() {
         }
 
         // Grab the starting state, then reparent into the final container and FLIP.
-        const state = Flip.getState(movingEl)
+        const state = Flip.getState(movingEl, 'borderRadius')
         slot.appendChild(movingEl)
         movingEl.style.cssText = ''
 
         const transition = Flip.from(state, {
-          scale: true,
+          scale: false,
           absolute: true,
           duration: 0.9,
           ease: 'power3.inOut',
@@ -205,8 +205,6 @@ export default function HomePage() {
         }
 
         if (gridItems.length) {
-          gsap.set(gridItems, { opacity: 0 })
-
           const count = gridItems.length
           const maxDim = gridItems.reduce((acc, el) => {
             const r = el.getBoundingClientRect()
@@ -294,11 +292,190 @@ export default function HomePage() {
   }
 
   const closeSet = () => {
+    if (isTransitioningRef.current) return
+    isTransitioningRef.current = true
+
+    const setScope = setViewRef.current
     const movingEl = movingPreviewElRef.current
-    if (movingEl?.parentElement) {
-      movingEl.parentElement.removeChild(movingEl)
+
+    if (!setScope || !movingEl) {
+      setActiveSetId(null)
+      isTransitioningRef.current = false
+      return
     }
-    setActiveSetId(null)
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        const state = Flip.getState(movingEl, 'borderRadius')
+        const currentSetId = activeSetId
+
+        flushSync(() => setActiveSetId(null))
+
+        const root = rootRef.current
+        const track = trackRef.current
+        const overlay = overlayRef.current
+
+        if (!root || !track || !overlay) {
+          isTransitioningRef.current = false
+          return
+        }
+
+        const targetWrapper = track.querySelector(`[data-flip-id="set-preview-${currentSetId}"]`)
+        const targetImg = targetWrapper?.querySelector('img')
+
+        if (targetWrapper && targetImg) {
+          const targetRect = targetImg.getBoundingClientRect()
+
+          overlay.appendChild(movingEl)
+          movingEl.style.position = 'absolute'
+          movingEl.style.left = `${targetRect.left}px`
+          movingEl.style.top = `${targetRect.top}px`
+          movingEl.style.width = `${targetRect.width}px`
+          movingEl.style.height = `${targetRect.height}px`
+          movingEl.style.transform = ''
+
+          const rootRect = root.getBoundingClientRect()
+          const offscreen = (rootRect.width ?? window.innerWidth) + 80
+          const leftSide: HTMLElement[] = []
+          const rightSide: HTMLElement[] = []
+
+          const clickedItem = targetWrapper.closest('.hscroll-item') as HTMLElement
+          if (clickedItem) {
+            const clickedRect = clickedItem.getBoundingClientRect()
+            const clickedCenterX = clickedRect.left + clickedRect.width / 2
+
+            const items = Array.from(track.querySelectorAll<HTMLElement>('.hscroll-item'))
+
+            for (const item of items) {
+              if (item === clickedItem) continue
+              const rect = item.getBoundingClientRect()
+              if (rect.right > rootRect.left - 100 && rect.left < rootRect.right + 100) {
+                const centerX = rect.left + rect.width / 2
+                if (centerX < clickedCenterX) leftSide.push(item)
+                else rightSide.push(item)
+              }
+            }
+          }
+
+          if (leftSide.length) {
+            gsap.set(leftSide, {
+              x: (_: number, target: Element) => {
+                const w = (target as HTMLElement).getBoundingClientRect().width
+                return -(offscreen + w)
+              },
+              opacity: 0,
+            })
+          }
+          if (rightSide.length) {
+            gsap.set(rightSide, {
+              x: (_: number, target: Element) => {
+                const w = (target as HTMLElement).getBoundingClientRect().width
+                return offscreen + w
+              },
+              opacity: 0,
+            })
+          }
+
+          // Ensure the clicked item is visible
+          if (clickedItem) {
+            gsap.set(clickedItem, { clearProps: 'opacity,transform', opacity: 1 })
+            // Hide the background box of the preview button while transitioning
+            const btn = clickedItem.querySelector('.hscroll-preview') as HTMLElement
+            if (btn) gsap.set(btn, { background: 'transparent', borderColor: 'transparent', boxShadow: 'none' })
+          }
+          if (targetImg) {
+            gsap.set(targetImg, { opacity: 0 })
+          }
+
+          // Animate in the meta text (title/subtitle)
+          if (clickedItem) {
+            const meta = clickedItem.querySelector('.hscroll-meta')
+            if (meta) {
+              gsap.fromTo(
+                meta,
+                { opacity: 0, y: 20 },
+                { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out', delay: 0.5 },
+              )
+            }
+          }
+
+          Flip.from(state, {
+            targets: movingEl,
+            duration: 0.9,
+            ease: 'power3.inOut',
+            scale: false,
+            absolute: true,
+            onComplete: () => {
+              if (movingEl.parentElement) movingEl.parentElement.removeChild(movingEl)
+              if (targetImg) gsap.set(targetImg, { clearProps: 'opacity', opacity: 1 })
+              if (clickedItem) {
+                const btn = clickedItem.querySelector('.hscroll-preview') as HTMLElement
+                if (btn) gsap.set(btn, { clearProps: 'background,borderColor,boxShadow' })
+              }
+              isTransitioningRef.current = false
+            },
+          })
+
+          gsap.to([...leftSide, ...rightSide], {
+            x: 0,
+            opacity: 1,
+            duration: 0.9,
+            ease: 'power3.inOut',
+            delay: 0.2,
+            onComplete: () => {
+              gsap.set([...leftSide, ...rightSide], { clearProps: 'all' })
+            },
+          })
+        } else {
+          if (movingEl.parentElement) movingEl.parentElement.removeChild(movingEl)
+          isTransitioningRef.current = false
+        }
+      },
+    })
+
+    const gridItems = setScope.querySelectorAll('[data-set-anim="grid"]')
+    if (gridItems.length) {
+      const count = gridItems.length
+      const maxDim = Array.from(gridItems).reduce((acc, el) => {
+        const r = el.getBoundingClientRect()
+        return Math.max(acc, r.width, r.height)
+      }, 0)
+      const radius = Math.hypot(window.innerWidth, window.innerHeight) / 2 + maxDim / 2 + 120
+
+      tl.to(
+        gridItems,
+        {
+          x: (index: number) => {
+            const angle = (index / count) * Math.PI * 2
+            return Math.cos(angle) * radius
+          },
+          y: (index: number) => {
+            const angle = (index / count) * Math.PI * 2
+            return Math.sin(angle) * radius
+          },
+          opacity: 0,
+          duration: 0.5,
+          ease: 'power3.in',
+          stagger: 0.01,
+        },
+        0,
+      )
+    }
+
+    const headerBits = setScope.querySelectorAll('[data-set-anim="header"]')
+    if (headerBits.length) {
+      tl.to(
+        headerBits,
+        {
+          x: -20,
+          opacity: 0,
+          duration: 0.4,
+          ease: 'power2.in',
+          stagger: 0.02,
+        },
+        0,
+      )
+    }
   }
 
   return (
@@ -309,7 +486,7 @@ export default function HomePage() {
         activeSet ? (
           <section className="set-page" ref={setViewRef}>
             <div className="set-header">
-              <div className="set-header-left" data-set-anim="header">
+              <div className="set-header-left">
                 <div className="set-hero">
                   <div className="set-hero-slot" ref={setHeroSlotRef} />
                 </div>

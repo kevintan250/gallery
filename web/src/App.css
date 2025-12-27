@@ -83,7 +83,7 @@
   display: flex;
   gap: 22px;
   align-items: stretch;
-  padding: 12px 8px;
+  padding: 12px 0 12px 5vw;
   will-change: transform;
 }
 
@@ -93,6 +93,10 @@
   flex-direction: column;
   gap: 12px;
   will-change: transform;
+}
+
+.hscroll-item:last-child {
+  margin-right: calc(5vw + min(520px, 82vw));
 }
 
 .hscroll-preview {
@@ -172,7 +176,7 @@
 .set-hero-slot .moving-preview {
   width: 100%;
   height: 100%;
-  border-radius: 14px;
+  border-radius: 18px;
 }
 
 .set-title {
@@ -193,7 +197,7 @@
 }
 
 .set-grid-item {
-  border-radius: 14px;
+  border-radius: 18px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
