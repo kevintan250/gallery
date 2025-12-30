@@ -70,6 +70,19 @@ export default function HomePage() {
 
       build()
 
+      // If images load after initial layout, scrollWidth can change — refresh measurements.
+      const imgs = Array.from(track.querySelectorAll('img'))
+      const onImgLoad = () => {
+        build()
+        ScrollTrigger.refresh()
+      }
+      for (const img of imgs) {
+        if (!img.complete) {
+          img.addEventListener('load', onImgLoad)
+          img.addEventListener('error', onImgLoad)
+        }
+      }
+
       if (lastScrollPos.current > 0) {
         const savedPos = lastScrollPos.current
         window.scrollTo(0, savedPos)
@@ -85,11 +98,24 @@ export default function HomePage() {
       }
 
       const onWheel = (e: WheelEvent) => {
-        if (tween && tween.scrollTrigger && tween.scrollTrigger.isActive) {
-          if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-            e.preventDefault()
-            window.scrollBy(0, e.deltaX)
-          }
+        const st = tween?.scrollTrigger
+        if (!st) return
+
+        // Keep scrolling bounded to the horizontal-carousel scroll range.
+        // This prevents the pinned section from "releasing" and moving vertically
+        // when the user keeps scrolling past the end.
+        const dominantDelta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+        const deltaMultiplier = e.deltaMode === 1 ? 16 : 1
+        const delta = dominantDelta * deltaMultiplier
+
+        const minY = st.start
+        const maxY = st.end
+        const currentY = window.scrollY
+
+        if (currentY >= minY && currentY <= maxY) {
+          e.preventDefault()
+          const nextY = Math.max(minY, Math.min(maxY, currentY + delta))
+          window.scrollTo(0, nextY)
         }
       }
       root.addEventListener('wheel', onWheel, { passive: false })
@@ -103,6 +129,10 @@ export default function HomePage() {
       return () => {
         window.removeEventListener('resize', onResize)
         root.removeEventListener('wheel', onWheel)
+        for (const img of imgs) {
+          img.removeEventListener('load', onImgLoad)
+          img.removeEventListener('error', onImgLoad)
+        }
         tween?.scrollTrigger?.kill()
         tween?.kill()
       }
@@ -691,42 +721,44 @@ export default function HomePage() {
         )
       ) : (
         <section className="landing">
-          <div className="hscroll" ref={rootRef}>
-            <div className="hscroll-track" ref={trackRef}>
-              {sets.map((set) => {
-                const preview = getSetPreviewPhoto(set)
-                const flipId = `set-preview-${set.id}`
-                const isClosing = closingSetIdRef.current === set.id
+          <div className="hscroll-pin" ref={rootRef}>
+            <div className="hscroll">
+              <div className="hscroll-track" ref={trackRef}>
+                {sets.map((set) => {
+                  const preview = getSetPreviewPhoto(set)
+                  const flipId = `set-preview-${set.id}`
+                  const isClosing = closingSetIdRef.current === set.id
 
-                return (
-                  <article key={set.id} className="hscroll-item">
-                    <button
-                      className="hscroll-preview"
-                      type="button"
-                      onClick={(e) => openSetInPlace(set.id, e.currentTarget)}
-                      aria-label={`Open ${set.name}`}
-                      style={
-                        isClosing
-                          ? { background: 'transparent', borderColor: 'transparent', boxShadow: 'none' }
-                          : undefined
-                      }
-                    >
-                      <div className="flip-target" data-flip-id={flipId}>
-                        <img
-                          src={preview.src}
-                          alt={preview.alt}
-                          style={isClosing ? { opacity: 0 } : undefined}
-                        />
+                  return (
+                    <article key={set.id} className="hscroll-item">
+                      <button
+                        className="hscroll-preview"
+                        type="button"
+                        onClick={(e) => openSetInPlace(set.id, e.currentTarget)}
+                        aria-label={`Open ${set.name}`}
+                        style={
+                          isClosing
+                            ? { background: 'transparent', borderColor: 'transparent', boxShadow: 'none' }
+                            : undefined
+                        }
+                      >
+                        <div className="flip-target" data-flip-id={flipId}>
+                          <img
+                            src={preview.src}
+                            alt={preview.alt}
+                            style={isClosing ? { opacity: 0 } : undefined}
+                          />
+                        </div>
+                      </button>
+
+                      <div className="hscroll-meta">
+                        <div className="hscroll-title">{set.name}</div>
+                        <div className="hscroll-subtitle">{set.location}</div>
                       </div>
-                    </button>
-
-                    <div className="hscroll-meta">
-                      <div className="hscroll-title">{set.name}</div>
-                      <div className="hscroll-subtitle">{set.location}</div>
-                    </div>
-                  </article>
-                )
-              })}
+                    </article>
+                  )
+                })}
+              </div>
             </div>
           </div>
         </section>
