@@ -285,7 +285,7 @@ export default function HomePage() {
             opacity: 0,
             duration: 0.6,
             ease: 'power3.out',
-            delay: 0.08,
+            delay: 0.8,
           })
         }
 
@@ -296,7 +296,7 @@ export default function HomePage() {
             duration: 0.6,
             ease: 'power3.out',
             stagger: 0.04,
-            delay: 0.08,
+            delay: 0.8,
           })
         }
 
@@ -326,7 +326,7 @@ export default function HomePage() {
             duration: 0.85,
             ease: 'power3.out',
             stagger: 0.03,
-            delay: 0.12,
+            delay: 0.85,
           })
         }
 
