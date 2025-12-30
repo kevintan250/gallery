@@ -2,6 +2,10 @@ export type Photo = {
   id: string
   src: string
   alt: string
+  x?: number
+  y?: number
+  rotation?: number
+  scale?: number
 }
 
 export type PhotoSet = {

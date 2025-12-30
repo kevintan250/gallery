@@ -23,11 +23,11 @@ export default function HomePage() {
 
   const gridTransforms = useMemo(() => {
     if (!activeSet) return []
-    return activeSet.photos.slice(1).map(() => ({
-      rotation: gsap.utils.random(-3, 3),
-      scale: gsap.utils.random(0.75, 0.85),
-      x: gsap.utils.random(-30, 30),
-      y: gsap.utils.random(-30, 30),
+    return activeSet.photos.slice(1).map((photo) => ({
+      rotation: photo.rotation ?? gsap.utils.random(-3, 3),
+      scale: photo.scale ?? gsap.utils.random(0.75, 0.85),
+      x: photo.x ?? gsap.utils.random(-30, 30),
+      y: photo.y ?? gsap.utils.random(-30, 30),
     }))
   }, [activeSet])
 
