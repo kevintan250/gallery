@@ -276,7 +276,18 @@ export default function HomePage() {
         transition.play(0)
 
         const headerBits = setScope.querySelectorAll<HTMLElement>('[data-set-anim="header"]')
+        const backBtn = setScope.querySelector<HTMLElement>('.back-btn-vertical')
         const gridItems = Array.from(setScope.querySelectorAll<HTMLElement>('[data-set-anim="grid"]'))
+
+        if (backBtn) {
+          gsap.from(backBtn, {
+            x: 40,
+            opacity: 0,
+            duration: 0.6,
+            ease: 'power3.out',
+            delay: 0.08,
+          })
+        }
 
         if (headerBits.length) {
           gsap.from(headerBits, {
@@ -576,6 +587,21 @@ export default function HomePage() {
     }
 
     const headerBits = setScope.querySelectorAll('[data-set-anim="header"]')
+    const backBtn = setScope.querySelector('.back-btn-vertical')
+
+    if (backBtn) {
+      tl.to(
+        backBtn,
+        {
+          x: 40,
+          opacity: 0,
+          duration: 0.4,
+          ease: 'power2.in',
+        },
+        0,
+      )
+    }
+
     if (headerBits.length) {
       tl.to(
         headerBits,
@@ -599,24 +625,22 @@ export default function HomePage() {
         activeSet ? (
           <section className="set-page" ref={setViewRef}>
             <div className="set-header">
-              <div className="set-header-left">
-                <div className="set-hero">
-                  <div className="set-hero-slot" ref={setHeroSlotRef} />
-                </div>
+              <button className="back-btn-vertical" type="button" onClick={closeSet}>
+                ❰
+              </button>
 
-                <div>
-                  <h2 className="set-title" data-set-anim="header">
-                    {activeSet.name}
-                  </h2>
-                  <div className="set-subtitle" data-set-anim="header">
-                    {activeSet.location}
-                  </div>
-                </div>
+              <div className="set-hero">
+                <div className="set-hero-slot" ref={setHeroSlotRef} />
               </div>
 
-              <button className="ghost" type="button" onClick={closeSet} data-set-anim="header">
-                Back to sets
-              </button>
+              <div className="set-info">
+                <h2 className="set-title" data-set-anim="header">
+                  {activeSet.name}
+                </h2>
+                <div className="set-subtitle" data-set-anim="header">
+                  {activeSet.location}
+                </div>
+              </div>
             </div>
 
             <div className="set-grid" role="list">
