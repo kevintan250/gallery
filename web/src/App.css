@@ -1,10 +1,31 @@
 .page {
+  --page-padding: clamp(16px, 4vw, 48px);
   min-height: 100vh;
   color: #e7ecf4;
   background: linear-gradient(145deg, #05060a, #0b0f1c 60%, #080a12);
-  padding: 0 clamp(16px, 4vw, 48px) 48px;
+  background-attachment: fixed;
+  padding: 0 var(--page-padding) 48px;
   display: flex;
   flex-direction: column;
+}
+
+.side-bar {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: var(--page-padding);
+  background: linear-gradient(145deg, #05060a, #0b0f1c 60%, #080a12);
+  background-attachment: fixed;
+  z-index: 60;
+  pointer-events: none;
+}
+
+.side-bar.left {
+  left: 0;
+}
+
+.side-bar.right {
+  right: 0;
 }
 
 .topbar {

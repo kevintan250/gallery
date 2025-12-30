@@ -285,7 +285,7 @@ export default function HomePage() {
             opacity: 0,
             duration: 0.6,
             ease: 'power3.out',
-            delay: 0.8,
+            delay: 0,
           })
         }
 
@@ -296,7 +296,7 @@ export default function HomePage() {
             duration: 0.6,
             ease: 'power3.out',
             stagger: 0.04,
-            delay: 0.8,
+            delay: 0,
           })
         }
 
@@ -428,12 +428,56 @@ export default function HomePage() {
         const startRect = movingEl.getBoundingClientRect()
         const currentSetId = activeSetId
 
+        const backBtn = setScope.querySelector('.back-btn-vertical') as HTMLElement | null
+        const setInfo = setScope.querySelector('.set-info') as HTMLElement | null
+        const overlay = overlayRef.current
+        const clonedElements: HTMLElement[] = []
+
+        if (overlay) {
+          if (backBtn) {
+            const rect = backBtn.getBoundingClientRect()
+            const clone = backBtn.cloneNode(true) as HTMLElement
+            clone.style.position = 'absolute'
+            clone.style.left = `${rect.left}px`
+            clone.style.top = `${rect.top}px`
+            clone.style.width = `${rect.width}px`
+            clone.style.height = `${rect.height}px`
+            clone.style.margin = '0'
+            clone.style.transform = ''
+            overlay.appendChild(clone)
+            clonedElements.push(clone)
+          }
+          if (setInfo) {
+            const rect = setInfo.getBoundingClientRect()
+            const clone = setInfo.cloneNode(true) as HTMLElement
+            clone.style.position = 'absolute'
+            clone.style.left = `${rect.left}px`
+            clone.style.top = `${rect.top}px`
+            clone.style.width = `${rect.width}px`
+            clone.style.height = `${rect.height}px`
+            clone.style.margin = '0'
+            clone.style.transform = ''
+            overlay.appendChild(clone)
+            clonedElements.push(clone)
+          }
+        }
+
         closingSetIdRef.current = currentSetId
         flushSync(() => setActiveSetId(null))
 
+        if (clonedElements.length) {
+          gsap.to(clonedElements, {
+            opacity: 0,
+            duration: 0.4,
+            delay: 0.1,
+            onComplete: () => {
+              clonedElements.forEach((el) => el.remove())
+            },
+          })
+        }
+
         const root = rootRef.current
         const track = trackRef.current
-        const overlay = overlayRef.current
 
         if (!root || !track || !overlay) {
           isTransitioningRef.current = false
@@ -601,35 +645,6 @@ export default function HomePage() {
       )
     }
 
-    const headerBits = setScope.querySelectorAll('[data-set-anim="header"]')
-    const backBtn = setScope.querySelector('.back-btn-vertical')
-
-    if (backBtn) {
-      tl.to(
-        backBtn,
-        {
-          x: 40,
-          opacity: 0,
-          duration: 0.4,
-          ease: 'power2.in',
-        },
-        0,
-      )
-    }
-
-    if (headerBits.length) {
-      tl.to(
-        headerBits,
-        {
-          x: -20,
-          opacity: 0,
-          duration: 0.4,
-          ease: 'power2.in',
-          stagger: 0.02,
-        },
-        0,
-      )
-    }
   }
 
   return (
