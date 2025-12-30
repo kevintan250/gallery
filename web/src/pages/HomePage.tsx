@@ -218,20 +218,24 @@ export default function HomePage() {
 
         if (gridItems.length) {
           const count = gridItems.length
-          const maxDim = gridItems.reduce((acc, el) => {
-            const r = el.getBoundingClientRect()
-            return Math.max(acc, r.width, r.height)
-          }, 0)
-          const radius = Math.hypot(window.innerWidth, window.innerHeight) / 2 + maxDim / 2 + 120
+          const width = window.innerWidth
+          const xPositions = gsap.utils.shuffle(
+            Array.from({ length: count }, (_, i) => {
+              const pos = (i / count) * width
+              return pos + gsap.utils.random(0, width / count)
+            }),
+          )
 
           gsap.from(gridItems, {
-            x: (index: number) => {
-              const angle = (index / count) * Math.PI * 2
-              return Math.cos(angle) * radius
+            x: (index: number, target: HTMLElement) => {
+              const rect = target.getBoundingClientRect()
+              const startX = xPositions[index]
+              return startX - (rect.left + rect.width / 2)
             },
-            y: (index: number) => {
-              const angle = (index / count) * Math.PI * 2
-              return Math.sin(angle) * radius
+            y: (_: number, target: HTMLElement) => {
+              const rect = target.getBoundingClientRect()
+              const startY = window.innerHeight + 200
+              return startY - rect.top
             },
             opacity: 0,
             duration: 0.85,
@@ -448,22 +452,26 @@ export default function HomePage() {
     const gridItems = setScope.querySelectorAll('[data-set-anim="grid"]')
     if (gridItems.length) {
       const count = gridItems.length
-      const maxDim = Array.from(gridItems).reduce((acc, el) => {
-        const r = el.getBoundingClientRect()
-        return Math.max(acc, r.width, r.height)
-      }, 0)
-      const radius = Math.hypot(window.innerWidth, window.innerHeight) / 2 + maxDim / 2 + 120
+      const width = window.innerWidth
+      const xPositions = gsap.utils.shuffle(
+        Array.from({ length: count }, (_, i) => {
+          const pos = (i / count) * width
+          return pos + gsap.utils.random(0, width / count)
+        }),
+      )
 
       tl.to(
         gridItems,
         {
-          x: (index: number) => {
-            const angle = (index / count) * Math.PI * 2
-            return Math.cos(angle) * radius
+          x: (index: number, target: HTMLElement) => {
+            const rect = target.getBoundingClientRect()
+            const endX = xPositions[index]
+            return endX - (rect.left + rect.width / 2)
           },
-          y: (index: number) => {
-            const angle = (index / count) * Math.PI * 2
-            return Math.sin(angle) * radius
+          y: (_: number, target: HTMLElement) => {
+            const rect = target.getBoundingClientRect()
+            const endY = window.innerHeight + 200
+            return endY - rect.top
           },
           opacity: 0,
           duration: 0.5,
