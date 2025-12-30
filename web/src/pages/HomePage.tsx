@@ -1,7 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { gsap } from 'gsap'
-import { Flip, ScrollTrigger } from 'gsap/all'
+import { Draggable, Flip, ScrollTrigger } from 'gsap/all'
 import { getPhotoSet, getSetPreviewPhoto, photoSets } from '../data/photoSets'
 
 export default function HomePage() {
@@ -20,6 +20,16 @@ export default function HomePage() {
     if (!activeSetId) return null
     return getPhotoSet(activeSetId) ?? null
   }, [activeSetId])
+
+  const gridTransforms = useMemo(() => {
+    if (!activeSet) return []
+    return activeSet.photos.slice(1).map(() => ({
+      rotation: gsap.utils.random(-3, 3),
+      scale: gsap.utils.random(0.75, 0.85),
+      x: gsap.utils.random(-30, 30),
+      y: gsap.utils.random(-30, 30),
+    }))
+  }, [activeSet])
 
   useLayoutEffect(() => {
     gsap.registerPlugin(ScrollTrigger)
@@ -98,6 +108,51 @@ export default function HomePage() {
 
     return () => ctx.revert()
   }, [activeSetId])
+
+  useLayoutEffect(() => {
+    if (!activeSetId) return
+
+    gsap.registerPlugin(Draggable)
+    const scope = setViewRef.current
+    if (!scope) return
+
+    const ctx = gsap.context(() => {
+      let highestZ = 100
+      const gridItems = scope.querySelectorAll<HTMLElement>('.set-grid-item')
+      gridItems.forEach((item, index) => {
+        const originalScale = gridTransforms[index]?.scale ?? 0.8
+
+        // Set initial cursor
+        gsap.set(item, { cursor: 'grab' })
+
+        Draggable.create(item, {
+          type: 'x,y',
+          bounds: window,
+          inertia: true,
+          onPress: function () {
+            highestZ++
+            gsap.to(this.target, {
+              scale: 1,
+              duration: 0.2,
+              overwrite: 'auto',
+              zIndex: highestZ,
+              cursor: 'grabbing',
+            })
+          },
+          onRelease: function () {
+            gsap.to(this.target, {
+              scale: originalScale,
+              duration: 0.2,
+              overwrite: 'auto',
+              cursor: 'grab',
+            })
+          },
+        })
+      })
+    }, scope)
+
+    return () => ctx.revert()
+  }, [activeSetId, gridTransforms])
 
   const openSetInPlace = (setId: string, clickedButton: HTMLButtonElement) => {
     if (isTransitioningRef.current) return
@@ -237,6 +292,7 @@ export default function HomePage() {
               const startY = window.innerHeight + 200
               return startY - rect.top
             },
+            rotation: () => gsap.utils.random(-15, 15),
             opacity: 0,
             duration: 0.85,
             ease: 'power3.out',
@@ -473,6 +529,7 @@ export default function HomePage() {
             const endY = window.innerHeight + 200
             return endY - rect.top
           },
+          rotation: () => gsap.utils.random(-15, 15),
           opacity: 0,
           duration: 0.5,
           ease: 'power3.in',
@@ -527,11 +584,24 @@ export default function HomePage() {
             </div>
 
             <div className="set-grid" role="list">
-              {activeSet.photos.slice(1).map((photo) => (
-                <div key={photo.id} className="set-grid-item" role="listitem" data-set-anim="grid">
-                  <img src={photo.src} alt={photo.alt} loading="lazy" />
-                </div>
-              ))}
+              {activeSet.photos.slice(1).map((photo, index) => {
+                const t = gridTransforms[index]
+                return (
+                  <div
+                    key={photo.id}
+                    className="set-grid-item"
+                    role="listitem"
+                    data-set-anim="grid"
+                    style={{
+                      transform: t
+                        ? `translate(${t.x}px, ${t.y}px) rotate(${t.rotation}deg) scale(${t.scale})`
+                        : undefined,
+                    }}
+                  >
+                    <img src={photo.src} alt={photo.alt} loading="lazy" />
+                  </div>
+                )
+              })}
             </div>
           </section>
         ) : (
