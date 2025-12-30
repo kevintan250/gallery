@@ -356,6 +356,21 @@ export default function HomePage() {
     const duration = 0.55
     const ease = 'power3.inOut'
 
+    const meta = clickedItem?.querySelector('.hscroll-meta')
+
+    if (meta) {
+      tl.to(
+        meta,
+        {
+          y: 20,
+          opacity: 0,
+          duration: 0.4,
+          ease: 'power2.in',
+        },
+        0.15,
+      )
+    }
+
     if (leftSide.length) {
       tl.to(
         leftSide,
