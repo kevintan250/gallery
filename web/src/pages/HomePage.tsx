@@ -15,6 +15,8 @@ export default function HomePage() {
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const isTransitioningRef = useRef(false)
   const movingPreviewElRef = useRef<HTMLDivElement | null>(null)
+  const lastScrollPos = useRef(0)
+  const closingSetIdRef = useRef<string | null>(null)
 
   const activeSet = useMemo(() => {
     if (!activeSetId) return null
@@ -67,6 +69,20 @@ export default function HomePage() {
       }
 
       build()
+
+      if (lastScrollPos.current > 0) {
+        const savedPos = lastScrollPos.current
+        window.scrollTo(0, savedPos)
+        lastScrollPos.current = 0
+        ScrollTrigger.refresh()
+
+        if (tween && (tween as any).scrollTrigger) {
+          const st = (tween as any).scrollTrigger as ScrollTrigger
+          const progress = (savedPos - st.start) / (st.end - st.start)
+          const clamped = Math.max(0, Math.min(1, progress))
+          ;(tween as any).progress(clamped)
+        }
+      }
 
       const onWheel = (e: WheelEvent) => {
         if (tween && tween.scrollTrigger && tween.scrollTrigger.isActive) {
@@ -230,7 +246,9 @@ export default function HomePage() {
       onComplete: () => {
         if (root) gsap.set(root, { pointerEvents: '' })
 
+        lastScrollPos.current = window.scrollY
         flushSync(() => setActiveSetId(setId))
+        window.scrollTo(0, 0)
 
         const slot = setHeroSlotRef.current
         const setScope = setViewRef.current
@@ -378,9 +396,13 @@ export default function HomePage() {
 
     const tl = gsap.timeline({
       onComplete: () => {
-        const state = Flip.getState(movingEl, 'borderRadius')
+        // Capture the exact position of the hero image BEFORE we unmount the set view.
+        // This ensures we have the correct "start" coordinates even if sticky headers or
+        // scroll positions make Flip.getState() tricky after unmounting.
+        const startRect = movingEl.getBoundingClientRect()
         const currentSetId = activeSetId
 
+        closingSetIdRef.current = currentSetId
         flushSync(() => setActiveSetId(null))
 
         const root = rootRef.current
@@ -399,12 +421,23 @@ export default function HomePage() {
           const targetRect = targetImg.getBoundingClientRect()
 
           overlay.appendChild(movingEl)
+          
+          // 1. Force movingEl to the START position immediately to prevent blinking
           movingEl.style.position = 'absolute'
+          movingEl.style.left = `${startRect.left}px`
+          movingEl.style.top = `${startRect.top}px`
+          movingEl.style.width = `${startRect.width}px`
+          movingEl.style.height = `${startRect.height}px`
+          movingEl.style.transform = ''
+          
+          // 2. Capture this as the "from" state for Flip
+          const state = Flip.getState(movingEl, 'borderRadius')
+
+          // 3. Set movingEl to the END position (the carousel item)
           movingEl.style.left = `${targetRect.left}px`
           movingEl.style.top = `${targetRect.top}px`
           movingEl.style.width = `${targetRect.width}px`
           movingEl.style.height = `${targetRect.height}px`
-          movingEl.style.transform = ''
 
           const rootRect = root.getBoundingClientRect()
           const offscreen = (rootRect.width ?? window.innerWidth) + 80
@@ -479,6 +512,9 @@ export default function HomePage() {
             absolute: true,
             onComplete: () => {
               if (movingEl.parentElement) movingEl.parentElement.removeChild(movingEl)
+              
+              closingSetIdRef.current = null
+              
               if (targetImg) gsap.set(targetImg, { clearProps: 'opacity', opacity: 1 })
               if (clickedItem) {
                 const btn = clickedItem.querySelector('.hscroll-preview') as HTMLElement
@@ -621,6 +657,7 @@ export default function HomePage() {
               {sets.map((set) => {
                 const preview = getSetPreviewPhoto(set)
                 const flipId = `set-preview-${set.id}`
+                const isClosing = closingSetIdRef.current === set.id
 
                 return (
                   <article key={set.id} className="hscroll-item">
@@ -629,9 +666,18 @@ export default function HomePage() {
                       type="button"
                       onClick={(e) => openSetInPlace(set.id, e.currentTarget)}
                       aria-label={`Open ${set.name}`}
+                      style={
+                        isClosing
+                          ? { background: 'transparent', borderColor: 'transparent', boxShadow: 'none' }
+                          : undefined
+                      }
                     >
                       <div className="flip-target" data-flip-id={flipId}>
-                        <img src={preview.src} alt={preview.alt} />
+                        <img
+                          src={preview.src}
+                          alt={preview.alt}
+                          style={isClosing ? { opacity: 0 } : undefined}
+                        />
                       </div>
                     </button>
 
