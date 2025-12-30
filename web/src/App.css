@@ -84,7 +84,8 @@
   display: flex;
   gap: 22px;
   align-items: stretch;
-  padding: 12px 0 12px 5vw;
+  padding-left: calc(max(0px, (100vw - min(520px, 82vw)) / 2 - 4vw));
+  padding-right: calc(max(0px, (100vw - min(520px, 82vw)) / 2 + 4vw));
   will-change: transform;
 }
 
@@ -94,10 +95,6 @@
   flex-direction: column;
   gap: 12px;
   will-change: transform;
-}
-
-.hscroll-item:last-child {
-  margin-right: calc(5vw + min(520px, 82vw));
 }
 
 .hscroll-preview {
