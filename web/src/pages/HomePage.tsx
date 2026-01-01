@@ -89,16 +89,17 @@ export default function HomePage() {
         lastScrollPos.current = 0
         ScrollTrigger.refresh()
 
-        if (tween && (tween as any).scrollTrigger) {
-          const st = (tween as any).scrollTrigger as ScrollTrigger
+        const st = (tween as unknown as { scrollTrigger?: ScrollTrigger } | null)?.scrollTrigger
+
+        if (tween && st) {
           const progress = (savedPos - st.start) / (st.end - st.start)
           const clamped = Math.max(0, Math.min(1, progress))
-          ;(tween as any).progress(clamped)
+          ;(tween as unknown as gsap.core.Animation).progress(clamped)
         }
       }
 
       const onWheel = (e: WheelEvent) => {
-        const st = tween?.scrollTrigger
+        const st = (tween as unknown as { scrollTrigger?: ScrollTrigger } | null)?.scrollTrigger
         if (!st) return
 
         // Keep scrolling bounded to the horizontal-carousel scroll range.
@@ -150,6 +151,91 @@ export default function HomePage() {
     const ctx = gsap.context(() => {
       gsap.set('.hscroll-item', { clearProps: 'transform,opacity' })
       gsap.set('.hscroll-preview', { clearProps: 'transform' })
+
+      const previews = Array.from(scope.querySelectorAll<HTMLElement>('.hscroll-preview'))
+      const cleanups: Array<() => void> = []
+
+      for (const preview of previews) {
+        const target = preview.querySelector<HTMLElement>('.flip-target')
+        const img = preview.querySelector<HTMLElement>('.flip-target img')
+        if (!target) continue
+
+        gsap.set(preview, {
+          perspective: 650,
+        })
+
+        gsap.set(target, {
+          transformOrigin: 'center',
+          transformStyle: 'preserve-3d',
+          willChange: 'transform',
+        })
+
+        if (img) {
+          gsap.set(img, {
+            willChange: 'transform',
+            force3D: true,
+            transformOrigin: 'center',
+          })
+        }
+
+        const outerRX = gsap.quickTo(target, 'rotationX', { duration: 0.25, ease: 'power3.out' })
+        const outerRY = gsap.quickTo(target, 'rotationY', { duration: 0.25, ease: 'power3.out' })
+        const scaleTo = gsap.quickTo(target, 'scale', { duration: 0.25, ease: 'power3.out' })
+        const zTo = gsap.quickTo(target, 'z', { duration: 0.25, ease: 'power3.out' })
+        const innerScale = img ? gsap.quickTo(img, 'scale', { duration: 0.25, ease: 'power3.out' }) : null
+
+        const maxTilt = 6
+        const hoverZ = 22
+        const hoverImgScale = 1.1
+
+        const onEnter = (e: PointerEvent) => {
+          if (e.pointerType === 'touch') return
+          zTo(hoverZ)
+          innerScale?.(hoverImgScale)
+          onMove(e)
+        }
+
+        const onMove = (e: PointerEvent) => {
+          if (e.pointerType === 'touch') return
+          const r = target.getBoundingClientRect()
+          if (r.width <= 0 || r.height <= 0) return
+
+          const px = (e.clientX - r.left) / r.width
+          const py = (e.clientY - r.top) / r.height
+          const clampedX = Math.max(0, Math.min(1, px))
+          const clampedY = Math.max(0, Math.min(1, py))
+
+          // Tilt so the hovered edge lifts TOWARD the cursor (toward viewer), not away.
+          // CSS note: with Y+ downward, negative rotationX brings the top edge closer.
+          outerRX(gsap.utils.interpolate(-maxTilt, maxTilt, clampedY))
+          outerRY(gsap.utils.interpolate(maxTilt, -maxTilt, clampedX))
+        }
+
+        const onLeave = (e: PointerEvent) => {
+          if (e.pointerType === 'touch') return
+          outerRX(0)
+          outerRY(0)
+          scaleTo(1)
+          zTo(0)
+          innerScale?.(1)
+        }
+
+        preview.addEventListener('pointerenter', onEnter)
+        preview.addEventListener('pointermove', onMove)
+        preview.addEventListener('pointerleave', onLeave)
+
+        cleanups.push(() => {
+          preview.removeEventListener('pointerenter', onEnter)
+          preview.removeEventListener('pointermove', onMove)
+          preview.removeEventListener('pointerleave', onLeave)
+          gsap.set(target, { rotationX: 0, rotationY: 0, scale: 1, z: 0 })
+          if (img) gsap.set(img, { scale: 1 })
+        })
+      }
+
+      return () => {
+        cleanups.forEach((fn) => fn())
+      }
     }, scope)
 
     return () => ctx.revert()
