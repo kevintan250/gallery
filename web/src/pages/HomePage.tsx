@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { gsap } from 'gsap'
 import { Draggable, Flip, Observer } from 'gsap/all'
@@ -7,6 +7,11 @@ import { getPhotoSet, getSetPreviewPhoto, photoSets } from '../data/photoSets'
 export default function HomePage() {
   const sets = useMemo(() => photoSets, [])
   const [activeSetId, setActiveSetId] = useState<string | null>(null)
+  const [hoverLabelContent, setHoverLabelContent] = useState<{ title: string; subtitle: string }>(
+    { title: '', subtitle: '' },
+  )
+  const [hoverLabelVisible, setHoverLabelVisible] = useState(false)
+  const hoverLabelVisibleRef = useRef(false)
 
   const currentCarouselIndexRef = useRef(0)
   const inactivePreviewScale = 0.8
@@ -20,6 +25,7 @@ export default function HomePage() {
   const isTransitioningRef = useRef(false)
   const parallaxEnabledRef = useRef(true)
   const parallaxKickRef = useRef<(() => void) | null>(null)
+  const hoverLabelRef = useRef<HTMLDivElement | null>(null)
   const movingPreviewElRef = useRef<HTMLDivElement | null>(null)
   const lastScrollPos = useRef(0)
   const closingSetIdRef = useRef<string | null>(null)
@@ -38,6 +44,10 @@ export default function HomePage() {
       y: photo.y ?? gsap.utils.random(-30, 30),
     }))
   }, [activeSet])
+
+  useEffect(() => {
+    hoverLabelVisibleRef.current = hoverLabelVisible
+  }, [hoverLabelVisible])
 
   useLayoutEffect(() => {
     gsap.registerPlugin(Observer)
@@ -234,15 +244,51 @@ export default function HomePage() {
       gsap.set('.hscroll-preview', { clearProps: 'transform' })
 
       const lastMouse = { x: 0, y: 0, has: false }
+
+      const labelEl = hoverLabelRef.current
+      const labelOffsetY = 0
+
+      const xSet = labelEl ? gsap.quickSetter(labelEl, 'x', 'px') : null
+      const ySet = labelEl ? gsap.quickSetter(labelEl, 'y', 'px') : null
+
+      const updateLabelPosition = () => {
+        if (!labelEl) return
+        if (!lastMouse.has) return
+        const w = labelEl.offsetWidth
+        const h = labelEl.offsetHeight
+        xSet?.(lastMouse.x - w / 2)
+        // Position label above the cursor: bottom edge touches cursor.
+        ySet?.(lastMouse.y - h + labelOffsetY)
+      }
+
+      const getMetaFromPreview = (previewEl: HTMLElement) => {
+        const item = previewEl.closest('.hscroll-item') as HTMLElement | null
+        const title = item?.dataset?.setName ?? ''
+        const subtitle = item?.dataset?.setLocation ?? ''
+        return { title, subtitle }
+      }
+
+      const showHoverLabelForPreview = (previewEl: HTMLElement) => {
+        const { title, subtitle } = getMetaFromPreview(previewEl)
+        setHoverLabelContent({ title, subtitle })
+        setHoverLabelVisible(true)
+        updateLabelPosition()
+      }
+
+      const hideHoverLabel = () => {
+        setHoverLabelVisible(false)
+      }
+
       const onPointerMove = (e: PointerEvent) => {
         if (e.pointerType !== 'mouse') return
         lastMouse.x = e.clientX
         lastMouse.y = e.clientY
         lastMouse.has = true
+        updateLabelPosition()
       }
 
-      // Track mouse position even when stationary over the carousel.
-      scope.addEventListener('pointermove', onPointerMove, { passive: true })
+      // Track mouse position globally so the label always follows while visible.
+      window.addEventListener('pointermove', onPointerMove, { passive: true })
 
       const kickParallaxUnderCursor = () => {
         if (!lastMouse.has) return
@@ -254,6 +300,9 @@ export default function HomePage() {
 
         const preview = (el as HTMLElement).closest?.('.hscroll-preview') as HTMLElement | null
         if (!preview) return
+
+        // If a preview slides under the cursor (e.g. after scroll), show the hover label without requiring mouse movement.
+        showHoverLabelForPreview(preview)
 
         const target = preview.querySelector<HTMLElement>('.flip-target')
         const img = preview.querySelector<HTMLImageElement>('.flip-target img')
@@ -291,6 +340,15 @@ export default function HomePage() {
       }
 
       parallaxKickRef.current = kickParallaxUnderCursor
+
+      if (labelEl) {
+        gsap.set(labelEl, {
+          x: 0,
+          y: 0,
+          autoAlpha: 0,
+          willChange: 'transform,opacity',
+        })
+      }
 
       const previews = Array.from(scope.querySelectorAll<HTMLElement>('.hscroll-preview'))
       const cleanups: Array<() => void> = []
@@ -334,6 +392,14 @@ export default function HomePage() {
           if (e.pointerType === 'touch') return
           if (!parallaxEnabledRef.current) return
           if (isTransitioningRef.current) return
+          // Ensure label/parallax can start even if the cursor was stationary.
+          if (e.pointerType === 'mouse') {
+            lastMouse.x = e.clientX
+            lastMouse.y = e.clientY
+            lastMouse.has = true
+          }
+          showHoverLabelForPreview(preview)
+          updateLabelPosition()
           zTo(hoverZ)
           innerScale?.(hoverImgScale)
           onMove(e)
@@ -360,6 +426,7 @@ export default function HomePage() {
         const onLeave = (e: PointerEvent) => {
           if (e.pointerType === 'touch') return
           if (isTransitioningRef.current) return
+          hideHoverLabel()
           outerRX(0)
           outerRY(0)
           scaleTo(previewIndex === currentCarouselIndexRef.current ? 1 : inactivePreviewScale)
@@ -381,10 +448,12 @@ export default function HomePage() {
       }
 
       return () => {
-        scope.removeEventListener('pointermove', onPointerMove)
+        window.removeEventListener('pointermove', onPointerMove)
         if (parallaxKickRef.current === kickParallaxUnderCursor) {
           parallaxKickRef.current = null
         }
+        // Ensure label is hidden if we unmount the landing view.
+        setHoverLabelVisible(false)
         cleanups.forEach((fn) => fn())
       }
     }, scope)
@@ -437,6 +506,47 @@ export default function HomePage() {
     return () => ctx.revert()
   }, [activeSetId, gridTransforms])
 
+  useLayoutEffect(() => {
+    const el = hoverLabelRef.current
+    if (!el) return
+
+    const ctx = gsap.context(() => {
+      if (!hoverLabelVisible || !hoverLabelContent.title) {
+        gsap.to(el, { autoAlpha: 0, duration: 0.12, ease: 'power2.out', overwrite: 'auto' })
+        return
+      }
+
+      const titleChars = el.querySelectorAll<HTMLElement>('.hover-label-char--title')
+      const subtitleChars = el.querySelectorAll<HTMLElement>('.hover-label-char--subtitle')
+
+      gsap.killTweensOf([el, titleChars, subtitleChars])
+
+      gsap.set(el, { autoAlpha: 1 })
+      gsap.set(titleChars, { autoAlpha: 0, yPercent: 120 })
+      gsap.set(subtitleChars, { autoAlpha: 0, yPercent: 120 })
+
+      const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
+      tl.to(titleChars, {
+        autoAlpha: 1,
+        yPercent: 0,
+        duration: 0.45,
+        stagger: { each: 0.018, from: 'start' },
+      })
+      tl.to(
+        subtitleChars,
+        {
+          autoAlpha: 1,
+          yPercent: 0,
+          duration: 0.4,
+          stagger: { each: 0.012, from: 'start' },
+        },
+        0.1,
+      )
+    }, el)
+
+    return () => ctx.revert()
+  }, [hoverLabelVisible, hoverLabelContent.title, hoverLabelContent.subtitle, activeSetId])
+
   const openSetInPlace = (setId: string, clickedButton: HTMLButtonElement) => {
     if (isTransitioningRef.current) return
     isTransitioningRef.current = true
@@ -474,6 +584,9 @@ export default function HomePage() {
     if (img) {
       img.src = preview.src
       img.alt = preview.alt
+      // Match the always-zoomed preview images to avoid any perceived shrink/jump
+      // when the moving element takes over for the FLIP transition.
+      gsap.set(img, { scale: basePreviewImgScale, transformOrigin: 'center center', force3D: true })
     }
 
     overlay.appendChild(movingEl)
@@ -547,7 +660,15 @@ export default function HomePage() {
 
         const headerBits = setScope.querySelectorAll<HTMLElement>('[data-set-anim="header"]')
         const backBtn = setScope.querySelector<HTMLElement>('.back-btn-vertical')
+        const gridEl = setScope.querySelector<HTMLElement>('.set-grid')
         const gridItems = Array.from(setScope.querySelectorAll<HTMLElement>('[data-set-anim="grid"]'))
+
+        // Defensive: if the grid container ever gets autoAlpha:0 applied (opacity:0 + visibility:hidden),
+        // the items will animate but remain invisible. Force it visible on entry.
+        if (gridEl) {
+          gsap.killTweensOf(gridEl)
+          gsap.set(gridEl, { autoAlpha: 1, overwrite: 'auto' })
+        }
 
         if (backBtn) {
           gsap.from(backBtn, {
@@ -580,7 +701,7 @@ export default function HomePage() {
             }),
           )
 
-          gsap.from(gridItems, {
+          const gridTween = gsap.from(gridItems, {
             x: (index: number, target: HTMLElement) => {
               const rect = target.getBoundingClientRect()
               const startX = xPositions[index]
@@ -597,6 +718,16 @@ export default function HomePage() {
             ease: 'power3.out',
             stagger: 0.03,
             delay: 0.85,
+            overwrite: 'auto',
+          })
+
+          // Defensive: if anything interrupts the tween before it finishes, make sure
+          // the grid can't get stuck invisible.
+          gridTween.eventCallback('onComplete', () => {
+            gsap.set(gridItems, { clearProps: 'opacity' })
+          })
+          gsap.delayedCall(2.2, () => {
+            gsap.set(gridItems, { opacity: 1, clearProps: 'opacity' })
           })
         }
 
@@ -632,7 +763,8 @@ export default function HomePage() {
       tl.to(
         clickedImg,
         {
-          scale: 1,
+          // Keep the base zoom so the image doesn't "shrink" right before the FLIP.
+          scale: basePreviewImgScale,
           duration: settleDuration,
           ease: 'power3.out',
           overwrite: 'auto',
@@ -745,7 +877,10 @@ export default function HomePage() {
         const targetImg = targetWrapper?.querySelector('img')
 
         if (targetWrapper && targetImg) {
-          const targetRect = targetImg.getBoundingClientRect()
+          // Use the wrapper rect (the visible clipped frame), not the scaled <img> rect.
+          // Otherwise, the moving element lands at the scaled image size, then snaps to
+          // the smaller wrapper when we swap back to the real preview.
+          const targetRect = targetWrapper.getBoundingClientRect()
 
           overlay.appendChild(movingEl)
           
@@ -1012,11 +1147,19 @@ export default function HomePage() {
                   const isClosing = closingSetIdRef.current === set.id
 
                   return (
-                    <article key={set.id} className="hscroll-item">
+                    <article
+                      key={set.id}
+                      className="hscroll-item"
+                      data-set-name={set.name}
+                      data-set-location={set.location}
+                    >
                       <button
                         className="hscroll-preview"
                         type="button"
-                        onClick={(e) => openSetInPlace(set.id, e.currentTarget)}
+                        onClick={(e) => {
+                          setHoverLabelVisible(false)
+                          openSetInPlace(set.id, e.currentTarget)
+                        }}
                         aria-label={`Open ${set.name}`}
                         style={
                           isClosing
@@ -1032,14 +1175,28 @@ export default function HomePage() {
                           />
                         </div>
                       </button>
-
-                      <div className="hscroll-meta">
-                        <div className="hscroll-title">{set.name}</div>
-                        <div className="hscroll-subtitle">{set.location}</div>
-                      </div>
                     </article>
                   )
                 })}
+              </div>
+            </div>
+          </div>
+
+          <div className="hover-label" ref={hoverLabelRef} aria-hidden="true">
+            <div className="hover-label-inner">
+              <div className="hover-label-row hover-label-title" aria-hidden="true">
+                {hoverLabelContent.title.split('').map((ch, i) => (
+                  <span key={`t-${i}`} className="hover-label-char hover-label-char--title">
+                    {ch === ' ' ? '\u00A0' : ch}
+                  </span>
+                ))}
+              </div>
+              <div className="hover-label-row hover-label-subtitle" aria-hidden="true">
+                {hoverLabelContent.subtitle.split('').map((ch, i) => (
+                  <span key={`s-${i}`} className="hover-label-char hover-label-char--subtitle">
+                    {ch === ' ' ? '\u00A0' : ch}
+                  </span>
+                ))}
               </div>
             </div>
           </div>

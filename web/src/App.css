@@ -128,6 +128,47 @@
   will-change: transform;
 }
 
+.hover-label {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate3d(0, 0, 0);
+}
+
+.hover-label-inner {
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  padding: 10px 12px;
+  max-width: min(72vw, 420px);
+}
+
+.hover-label-row {
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.hover-label-title {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-size: 22px;
+}
+
+.hover-label-subtitle {
+  margin-top: 4px;
+  color: #c6d4e8;
+  font-size: 16px;
+}
+
+.hover-label-char {
+  display: inline-block;
+  will-change: transform, opacity;
+}
+
 .hscroll-preview {
   padding: 0;
   border-radius: 18px;
