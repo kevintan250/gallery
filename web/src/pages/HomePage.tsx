@@ -25,6 +25,7 @@ export default function HomePage() {
   const isTransitioningRef = useRef(false)
   const parallaxEnabledRef = useRef(true)
   const parallaxKickRef = useRef<(() => void) | null>(null)
+  const goToIndexRef = useRef<((nextIndex: number) => void) | null>(null)
   const hoverLabelRef = useRef<HTMLDivElement | null>(null)
   const movingPreviewElRef = useRef<HTMLDivElement | null>(null)
   const lastScrollPos = useRef(0)
@@ -174,6 +175,9 @@ export default function HomePage() {
 
       refresh()
 
+      // Expose for click-to-center behavior.
+      goToIndexRef.current = goTo
+
       // If images load after initial layout, scrollWidth can change — refresh measurements.
       const imgs = Array.from(track.querySelectorAll('img'))
       const onImgLoad = () => {
@@ -198,6 +202,8 @@ export default function HomePage() {
         wheelSpeed: -1,
         tolerance: 12,
         preventDefault: true,
+        // Allow trackpads/mice to scroll horizontally as well.
+        lockAxis: true,
         onDown: () => {
           if (animating) return
           goTo(currentCarouselIndexRef.current - 1)
@@ -206,12 +212,22 @@ export default function HomePage() {
           if (animating) return
           goTo(currentCarouselIndexRef.current + 1)
         },
+        onLeft: () => {
+          if (animating) return
+          goTo(currentCarouselIndexRef.current + 1)
+        },
+        onRight: () => {
+          if (animating) return
+          goTo(currentCarouselIndexRef.current - 1)
+        },
       })
 
-      // Ensure we're snapped to the first item on mount.
-      gsap.set(track, { x: computeTrackXForIndex(0) })
-      currentCarouselIndexRef.current = 0
-      applyPreviewScales(0)
+      // Snap to the last-known centered index (e.g. when returning from a set view).
+      const items = getItems()
+      const startIndex = Math.max(0, Math.min(items.length - 1, currentCarouselIndexRef.current))
+      gsap.set(track, { x: computeTrackXForIndex(startIndex) })
+      currentCarouselIndexRef.current = startIndex
+      applyPreviewScales(startIndex)
 
       const onResize = () => {
         refresh()
@@ -223,6 +239,7 @@ export default function HomePage() {
         observer?.kill()
         observer = null
         parallaxKickRef.current = null
+        if (goToIndexRef.current === goTo) goToIndexRef.current = null
         for (const img of imgs) {
           img.removeEventListener('load', onImgLoad)
           img.removeEventListener('error', onImgLoad)
@@ -600,6 +617,13 @@ export default function HomePage() {
     const track = trackRef.current
     const clickedItem = clickedButton.closest('.hscroll-item') as HTMLElement | null
 
+    // Remember which carousel item corresponds to this set so we can restore it on exit.
+    if (clickedItem && track) {
+      const items = Array.from(track.querySelectorAll<HTMLElement>('.hscroll-item'))
+      const idx = items.indexOf(clickedItem)
+      if (idx >= 0) currentCarouselIndexRef.current = idx
+    }
+
     const rootRect = root?.getBoundingClientRect()
     const offscreen = (rootRect?.width ?? window.innerWidth) + 80
 
@@ -843,6 +867,12 @@ export default function HomePage() {
     if (isTransitioningRef.current) return
     isTransitioningRef.current = true
     parallaxEnabledRef.current = false
+
+    // Ensure we restore the carousel centered on the set we're closing.
+    if (activeSetId) {
+      const idx = sets.findIndex((s) => s.id === activeSetId)
+      if (idx >= 0) currentCarouselIndexRef.current = idx
+    }
 
     const setScope = setViewRef.current
     const movingEl = movingPreviewElRef.current
@@ -1158,6 +1188,17 @@ export default function HomePage() {
                         type="button"
                         onClick={(e) => {
                           setHoverLabelVisible(false)
+                          // If you click a non-centered item, center it first.
+                          const current = currentCarouselIndexRef.current
+                          const items = Array.from(
+                            trackRef.current?.querySelectorAll<HTMLElement>('.hscroll-item') ?? [],
+                          )
+                          const clickedItem = e.currentTarget.closest('.hscroll-item') as HTMLElement | null
+                          const clickedIndex = clickedItem ? items.indexOf(clickedItem) : -1
+                          if (clickedIndex >= 0 && clickedIndex !== current) {
+                            goToIndexRef.current?.(clickedIndex)
+                            return
+                          }
                           openSetInPlace(set.id, e.currentTarget)
                         }}
                         aria-label={`Open ${set.name}`}
