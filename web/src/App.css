@@ -1,8 +1,8 @@
 .page {
   --page-padding: clamp(16px, 4vw, 48px);
   min-height: 100vh;
-  color: #e7ecf4;
-  background: linear-gradient(145deg, #05060a, #0b0f1c 60%, #080a12);
+  color: #0b0f1c;
+  background: linear-gradient(145deg, #f7f9ff, #eef3ff 60%, #f6f8fb);
   background-attachment: fixed;
   padding: 0 var(--page-padding) 48px;
   display: flex;
@@ -14,7 +14,7 @@
   top: 0;
   bottom: 0;
   width: var(--page-padding);
-  background: linear-gradient(145deg, #05060a, #0b0f1c 60%, #080a12);
+  background: linear-gradient(145deg, #f7f9ff, #eef3ff 60%, #f6f8fb);
   background-attachment: fixed;
   z-index: 60;
   pointer-events: none;
@@ -30,7 +30,7 @@
 
 .topbar {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   height: 64px;
   padding: 0;
@@ -58,10 +58,10 @@
   gap: 8px;
   padding: 10px 14px;
   border-radius: 999px;
-  border: 1px solid #2f3e57;
-  color: #c6d4e8;
-  background: rgba(255, 255, 255, 0.04);
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.26);
+  border: 1px solid rgba(11, 15, 28, 0.12);
+  color: rgba(11, 15, 28, 0.75);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 10px 40px rgba(11, 15, 28, 0.08);
   font-size: 13px;
 }
 
@@ -91,9 +91,9 @@
 .moving-preview {
   border-radius: 18px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.38);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(11, 15, 28, 0.1);
+  box-shadow: 0 16px 36px rgba(11, 15, 28, 0.14);
 }
 
 .moving-preview img {
@@ -140,9 +140,9 @@
 
 .hover-label-inner {
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.32);
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(11, 15, 28, 0.1);
+  box-shadow: 0 12px 28px rgba(11, 15, 28, 0.14);
   padding: 10px 12px;
   max-width: min(72vw, 420px);
 }
@@ -160,7 +160,7 @@
 
 .hover-label-subtitle {
   margin-top: 4px;
-  color: #c6d4e8;
+  color: rgba(11, 15, 28, 0.65);
   font-size: 16px;
 }
 
@@ -181,6 +181,7 @@
 .hscroll-preview:hover,
 .hscroll-preview:active {
   transform: none;
+  box-shadow: none;
 }
 
 .hscroll-preview .flip-target {
@@ -188,6 +189,13 @@
   height: 340px;
   border-radius: 18px;
   overflow: hidden;
+  box-shadow: none;
+  transition: box-shadow 160ms ease;
+}
+
+.hscroll-pin[data-gallery-interactive='true'] .hscroll-preview:hover .flip-target,
+.hscroll-pin[data-gallery-interactive='true'] .hscroll-preview:active .flip-target {
+  box-shadow: 0 16px 36px rgba(11, 15, 28, 0.14);
 }
 
 .hscroll-preview img {
@@ -209,7 +217,7 @@
 }
 
 .hscroll-subtitle {
-  color: #c6d4e8;
+  color: rgba(11, 15, 28, 0.65);
   font-size: 13px;
 }
 
@@ -245,9 +253,9 @@
   justify-content: center;
   padding: 0;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(11, 15, 28, 0.04);
+  color: rgba(11, 15, 28, 0.55);
+  border: 1px solid rgba(11, 15, 28, 0.1);
   font-size: 18px;
   font-family: monospace;
   cursor: pointer;
@@ -261,7 +269,7 @@
 }
 
 .back-btn-vertical:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(11, 15, 28, 0.06);
   transform: translateX(-2px);
 }
 
@@ -284,7 +292,7 @@
 }
 
 .set-subtitle {
-  color: #c6d4e8;
+  color: rgba(11, 15, 28, 0.65);
   font-size: 13px;
 }
 
@@ -297,9 +305,9 @@
 .set-grid-item {
   border-radius: 18px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.38);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(11, 15, 28, 0.1);
+  box-shadow: 0 16px 36px rgba(11, 15, 28, 0.14);
 }
 
 .set-grid-item img {
@@ -319,22 +327,22 @@ button {
   background: linear-gradient(90deg, #c4e2ff, #6dd3ff);
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 160ms ease, background 200ms ease;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 10px 30px rgba(11, 15, 28, 0.14);
 }
 
-button:hover {
+button:not(.hscroll-preview):hover {
   transform: translateY(-1px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.36);
+  box-shadow: 0 16px 40px rgba(11, 15, 28, 0.18);
 }
 
-button:active {
+button:not(.hscroll-preview):active {
   transform: translateY(0px);
 }
 
 button.ghost {
-  background: rgba(255, 255, 255, 0.06);
-  color: #dce6f5;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(11, 15, 28, 0.04);
+  color: rgba(11, 15, 28, 0.75);
+  border: 1px solid rgba(11, 15, 28, 0.12);
   box-shadow: none;
 }
 

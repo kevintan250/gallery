@@ -8,11 +8,7 @@ export default function AppShell() {
       <div className="side-bar left" />
       <div className="side-bar right" />
       <header className="topbar">
-        <div className="brand">Gallery</div>
-        <nav className="menu">
-          <button className="ghost small">About</button>
-          <button className="ghost small">Contact</button>
-        </nav>
+        <div className="brand">komplete.chaos</div>
       </header>
 
       <Routes>

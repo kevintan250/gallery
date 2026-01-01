@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { gsap } from 'gsap'
 import { Draggable, Flip, Observer } from 'gsap/all'
@@ -31,6 +31,19 @@ export default function HomePage() {
   const lastScrollPos = useRef(0)
   const closingSetIdRef = useRef<string | null>(null)
 
+  type PreviewParallaxFns = {
+    outerRX: (value: number) => void
+    outerRY: (value: number) => void
+    scaleTo: (value: number) => void
+    zTo: (value: number) => void
+    innerScale: ((value: number) => void) | null
+  }
+
+  // Keep a stable registry of the per-preview quickTo setters.
+  // IMPORTANT: using gsap.to(... overwrite:'auto') on the same properties can kill
+  // these tweens, leaving the returned functions “dead” and causing the parallax to freeze.
+  const previewParallaxRef = useRef<Map<HTMLElement, PreviewParallaxFns>>(new Map())
+
   const activeSet = useMemo(() => {
     if (!activeSetId) return null
     return getPhotoSet(activeSetId) ?? null
@@ -49,6 +62,23 @@ export default function HomePage() {
   useEffect(() => {
     hoverLabelVisibleRef.current = hoverLabelVisible
   }, [hoverLabelVisible])
+
+  const setGalleryInteractive = useCallback((enabled: boolean) => {
+    const root = rootRef.current
+    if (!root) return
+    root.dataset.galleryInteractive = enabled ? 'true' : 'false'
+  }, [])
+
+  const disablePreviewParallax = useCallback(() => {
+    parallaxEnabledRef.current = false
+    setGalleryInteractive(false)
+  }, [setGalleryInteractive])
+
+  const enablePreviewParallax = useCallback(() => {
+    parallaxEnabledRef.current = true
+    setGalleryInteractive(true)
+    parallaxKickRef.current?.()
+  }, [setGalleryInteractive])
 
   useLayoutEffect(() => {
     gsap.registerPlugin(Observer)
@@ -71,6 +101,16 @@ export default function HomePage() {
       const settlePreviewParallax = () => {
         const previews = Array.from(track.querySelectorAll<HTMLElement>('.hscroll-preview'))
         for (const preview of previews) {
+          const fns = previewParallaxRef.current.get(preview)
+          if (fns) {
+            fns.outerRX(0)
+            fns.outerRY(0)
+            fns.zTo(0)
+            fns.innerScale?.(basePreviewImgScale)
+            continue
+          }
+
+          // Fallback (should be rare): if the registry isn't ready yet, do a direct tween.
           const target = preview.querySelector<HTMLElement>('.flip-target')
           const img = preview.querySelector<HTMLImageElement>('.flip-target img')
           if (target) {
@@ -80,7 +120,6 @@ export default function HomePage() {
               z: 0,
               duration: 0.18,
               ease: 'power2.out',
-              overwrite: 'auto',
             })
           }
           if (img) {
@@ -88,7 +127,6 @@ export default function HomePage() {
               scale: basePreviewImgScale,
               duration: 0.18,
               ease: 'power2.out',
-              overwrite: 'auto',
             })
           }
         }
@@ -129,7 +167,7 @@ export default function HomePage() {
         animating = true
 
         // Ensure any hover/parallax state resolves even if the mouse doesn't move.
-        parallaxEnabledRef.current = false
+        disablePreviewParallax()
         settlePreviewParallax()
 
         const next = clamped
@@ -159,8 +197,14 @@ export default function HomePage() {
               currentCarouselIndexRef.current = next
               applyPreviewScales(next)
               animating = false
-              parallaxEnabledRef.current = true
-              parallaxKickRef.current?.()
+              enablePreviewParallax()
+            },
+            onInterrupt: () => {
+              // If the tween gets killed/overwritten (rare, but can happen during rapid state changes),
+              // don't leave the gallery in a permanently non-interactive state.
+              applyPreviewScales(currentCarouselIndexRef.current)
+              animating = false
+              enablePreviewParallax()
             },
           })
           .to(track, { x: computeTrackXForIndex(next) }, 0)
@@ -177,6 +221,9 @@ export default function HomePage() {
 
       // Expose for click-to-center behavior.
       goToIndexRef.current = goTo
+
+      // Default: allow hover interactions in the gallery view.
+      setGalleryInteractive(parallaxEnabledRef.current)
 
       // If images load after initial layout, scrollWidth can change — refresh measurements.
       const imgs = Array.from(track.querySelectorAll('img'))
@@ -248,7 +295,7 @@ export default function HomePage() {
     }, root)
 
     return () => ctx.revert()
-  }, [activeSetId])
+  }, [activeSetId, disablePreviewParallax, enablePreviewParallax, setGalleryInteractive])
 
   useLayoutEffect(() => {
     if (activeSetId) return
@@ -322,7 +369,6 @@ export default function HomePage() {
         showHoverLabelForPreview(preview)
 
         const target = preview.querySelector<HTMLElement>('.flip-target')
-        const img = preview.querySelector<HTMLImageElement>('.flip-target img')
         if (!target) return
 
         const r = target.getBoundingClientRect()
@@ -337,21 +383,29 @@ export default function HomePage() {
         const hoverZ = 22
         const hoverImgScale = basePreviewImgScale
 
+        const fns = previewParallaxRef.current.get(preview)
+        if (fns) {
+          fns.zTo(hoverZ)
+          fns.innerScale?.(hoverImgScale)
+          fns.outerRX(gsap.utils.interpolate(-maxTilt, maxTilt, clampedY))
+          fns.outerRY(gsap.utils.interpolate(maxTilt, -maxTilt, clampedX))
+          return
+        }
+
+        // Fallback (should be rare): if the registry isn't ready yet, do a direct tween.
+        const img = preview.querySelector<HTMLImageElement>('.flip-target img')
         gsap.to(target, {
           rotationX: gsap.utils.interpolate(-maxTilt, maxTilt, clampedY),
           rotationY: gsap.utils.interpolate(maxTilt, -maxTilt, clampedX),
           z: hoverZ,
           duration: 0.25,
           ease: 'power3.out',
-          overwrite: 'auto',
         })
-
         if (img) {
           gsap.to(img, {
             scale: hoverImgScale,
             duration: 0.25,
             ease: 'power3.out',
-            overwrite: 'auto',
           })
         }
       }
@@ -400,6 +454,8 @@ export default function HomePage() {
         const scaleTo = gsap.quickTo(target, 'scale', { duration: 0.25, ease: 'power3.out' })
         const zTo = gsap.quickTo(target, 'z', { duration: 0.25, ease: 'power3.out' })
         const innerScale = img ? gsap.quickTo(img, 'scale', { duration: 0.25, ease: 'power3.out' }) : null
+
+        previewParallaxRef.current.set(preview, { outerRX, outerRY, scaleTo, zTo, innerScale })
 
         const maxTilt = 6
         const hoverZ = 22
@@ -456,6 +512,7 @@ export default function HomePage() {
         preview.addEventListener('pointerleave', onLeave)
 
         cleanups.push(() => {
+          previewParallaxRef.current.delete(preview)
           preview.removeEventListener('pointerenter', onEnter)
           preview.removeEventListener('pointermove', onMove)
           preview.removeEventListener('pointerleave', onLeave)
@@ -567,7 +624,7 @@ export default function HomePage() {
   const openSetInPlace = (setId: string, clickedButton: HTMLButtonElement) => {
     if (isTransitioningRef.current) return
     isTransitioningRef.current = true
-    parallaxEnabledRef.current = false
+    disablePreviewParallax()
 
     gsap.registerPlugin(Flip)
     const set = getPhotoSet(setId)
@@ -866,7 +923,7 @@ export default function HomePage() {
   const closeSet = () => {
     if (isTransitioningRef.current) return
     isTransitioningRef.current = true
-    parallaxEnabledRef.current = false
+    disablePreviewParallax()
 
     // Ensure we restore the carousel centered on the set we're closing.
     if (activeSetId) {
@@ -1016,8 +1073,13 @@ export default function HomePage() {
 
               // If there are no neighbor settle animations, it's safe to re-enable parallax now.
               if (leftSide.length === 0 && rightSide.length === 0) {
-                parallaxEnabledRef.current = true
+                enablePreviewParallax()
               }
+            },
+            onInterrupt: () => {
+              // Defensive: ensure we don't strand the gallery with parallax disabled.
+              isTransitioningRef.current = false
+              enablePreviewParallax()
             },
           })
 
@@ -1032,15 +1094,29 @@ export default function HomePage() {
               onComplete: () => {
                 gsap.set(neighbors, { clearProps: 'all' })
                 // Only allow hover parallax after everything has settled.
-                parallaxEnabledRef.current = true
+                enablePreviewParallax()
+              },
+              onInterrupt: () => {
+                // If this tween gets interrupted, don't leave parallax disabled.
+                enablePreviewParallax()
               },
             })
           }
+
+          // Last-resort safety: if any of the above completion callbacks are skipped,
+          // re-enable hover parallax after the close animation window.
+          gsap.delayedCall(1.6, () => {
+            if (!isTransitioningRef.current) enablePreviewParallax()
+          })
         } else {
           if (movingEl.parentElement) movingEl.parentElement.removeChild(movingEl)
           isTransitioningRef.current = false
-          parallaxEnabledRef.current = true
+          enablePreviewParallax()
         }
+      },
+      onInterrupt: () => {
+        isTransitioningRef.current = false
+        enablePreviewParallax()
       },
     })
 
