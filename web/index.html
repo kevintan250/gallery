@@ -2,12 +2,29 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="%BASE_URL%vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>web</title>
+    <script>
+      ;(function () {
+        // GitHub Pages serves 404s for SPA deep links. Our 404.html redirects to
+        // /?/<original-path>. This restores the URL so React Router can handle it.
+        var l = window.location
+        if (l.search && l.search.startsWith('?/')) {
+          var restoredPath = l.search
+            .slice(2)
+            .split('&')
+            .map(function (s) {
+              return s.replace(/~and~/g, '&')
+            })
+            .join('?')
+          window.history.replaceState(null, '', l.pathname + restoredPath + l.hash)
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" src="%BASE_URL%src/main.tsx"></script>
   </body>
 </html>

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Not Found</title>
+    <script>
+      ;(function () {
+        // Redirect unknown routes back to index.html for SPA routing.
+        // For GitHub Pages project sites, the first segment is the repo name.
+        var segmentCount = 1
+        var l = window.location
+        var pathParts = l.pathname.split('/')
+
+        var baseParts = pathParts.slice(0, 1 + segmentCount)
+        var restParts = pathParts.slice(1 + segmentCount)
+
+        var newPath = baseParts.join('/') + '/?/' + restParts.join('/')
+        if (l.search) {
+          newPath += '&' + l.search.slice(1).replace(/&/g, '~and~')
+        }
+
+        l.replace(l.protocol + '//' + l.host + newPath + l.hash)
+      })()
+    </script>
+  </head>
+  <body></body>
+</html>
