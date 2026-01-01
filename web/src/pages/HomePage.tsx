@@ -30,6 +30,7 @@ export default function HomePage() {
   const movingPreviewElRef = useRef<HTMLDivElement | null>(null)
   const lastScrollPos = useRef(0)
   const closingSetIdRef = useRef<string | null>(null)
+  const hideAnimationRef = useRef<gsap.core.Tween | null>(null)
 
   type PreviewParallaxFns = {
     outerRX: (value: number) => void
@@ -310,7 +311,7 @@ export default function HomePage() {
       const lastMouse = { x: 0, y: 0, has: false }
 
       const labelEl = hoverLabelRef.current
-      const labelOffsetY = 0
+      const labelOffsetY = 16
 
       const xSet = labelEl ? gsap.quickSetter(labelEl, 'x', 'px') : null
       const ySet = labelEl ? gsap.quickSetter(labelEl, 'y', 'px') : null
@@ -320,9 +321,9 @@ export default function HomePage() {
         if (!lastMouse.has) return
         const w = labelEl.offsetWidth
         const h = labelEl.offsetHeight
-        xSet?.(lastMouse.x - w / 2)
-        // Position label above the cursor: bottom edge touches cursor.
-        ySet?.(lastMouse.y - h + labelOffsetY)
+        xSet?.(lastMouse.x)
+        // Position label with top left corner near the cursor.
+        ySet?.(lastMouse.y + labelOffsetY)
       }
 
       const getMetaFromPreview = (previewEl: HTMLElement) => {
@@ -340,7 +341,25 @@ export default function HomePage() {
       }
 
       const hideHoverLabel = () => {
-        setHoverLabelVisible(false)
+        const el = hoverLabelRef.current
+        if (!el) return
+        
+        // Kill any existing hide animation
+        if (hideAnimationRef.current) {
+          hideAnimationRef.current.kill()
+        }
+        
+        // Animate out, then change state
+        hideAnimationRef.current = gsap.to(el, {
+          autoAlpha: 0,
+          scale: 0.5,
+          duration: 0.25,
+          ease: 'back.in(1.7)',
+          onComplete: () => {
+            setHoverLabelVisible(false)
+            hideAnimationRef.current = null
+          },
+        })
       }
 
       const onPointerMove = (e: PointerEvent) => {
@@ -586,35 +605,27 @@ export default function HomePage() {
 
     const ctx = gsap.context(() => {
       if (!hoverLabelVisible || !hoverLabelContent.title) {
-        gsap.to(el, { autoAlpha: 0, duration: 0.12, ease: 'power2.out', overwrite: 'auto' })
         return
       }
 
-      const titleChars = el.querySelectorAll<HTMLElement>('.hover-label-char--title')
-      const subtitleChars = el.querySelectorAll<HTMLElement>('.hover-label-char--subtitle')
+      // Cancel any pending hide animation
+      if (hideAnimationRef.current) {
+        hideAnimationRef.current.kill()
+        hideAnimationRef.current = null
+      }
 
-      gsap.killTweensOf([el, titleChars, subtitleChars])
+      gsap.killTweensOf(el)
 
-      gsap.set(el, { autoAlpha: 1 })
-      gsap.set(titleChars, { autoAlpha: 0, yPercent: 120 })
-      gsap.set(subtitleChars, { autoAlpha: 0, yPercent: 120 })
-
-      const tl = gsap.timeline({ defaults: { ease: 'power2.out' } })
-      tl.to(titleChars, {
-        autoAlpha: 1,
-        yPercent: 0,
-        duration: 0.45,
-        stagger: { each: 0.018, from: 'start' },
-      })
-      tl.to(
-        subtitleChars,
+      gsap.set(el, { transformOrigin: 'top left' })
+      gsap.fromTo(
+        el,
+        { autoAlpha: 0, scale: 0.5 },
         {
           autoAlpha: 1,
-          yPercent: 0,
-          duration: 0.4,
-          stagger: { each: 0.012, from: 'start' },
+          scale: 1,
+          duration: 0.35,
+          ease: 'back.out(1.7)',
         },
-        0.1,
       )
     }, el)
 
