@@ -14,6 +14,7 @@ export default function HomePage() {
   const setHeroSlotRef = useRef<HTMLDivElement | null>(null)
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const isTransitioningRef = useRef(false)
+  const parallaxEnabledRef = useRef(true)
   const movingPreviewElRef = useRef<HTMLDivElement | null>(null)
   const lastScrollPos = useRef(0)
   const closingSetIdRef = useRef<string | null>(null)
@@ -190,6 +191,8 @@ export default function HomePage() {
 
         const onEnter = (e: PointerEvent) => {
           if (e.pointerType === 'touch') return
+          if (!parallaxEnabledRef.current) return
+          if (isTransitioningRef.current) return
           zTo(hoverZ)
           innerScale?.(hoverImgScale)
           onMove(e)
@@ -197,6 +200,8 @@ export default function HomePage() {
 
         const onMove = (e: PointerEvent) => {
           if (e.pointerType === 'touch') return
+          if (!parallaxEnabledRef.current) return
+          if (isTransitioningRef.current) return
           const r = target.getBoundingClientRect()
           if (r.width <= 0 || r.height <= 0) return
 
@@ -213,6 +218,7 @@ export default function HomePage() {
 
         const onLeave = (e: PointerEvent) => {
           if (e.pointerType === 'touch') return
+          if (isTransitioningRef.current) return
           outerRX(0)
           outerRY(0)
           scaleTo(1)
@@ -289,6 +295,7 @@ export default function HomePage() {
   const openSetInPlace = (setId: string, clickedButton: HTMLButtonElement) => {
     if (isTransitioningRef.current) return
     isTransitioningRef.current = true
+    parallaxEnabledRef.current = false
 
     gsap.registerPlugin(Flip)
     const set = getPhotoSet(setId)
@@ -298,6 +305,8 @@ export default function HomePage() {
     }
 
     const preview = getSetPreviewPhoto(set)
+    const clickedTarget = clickedButton.querySelector('.flip-target') as HTMLElement | null
+    const clickedImg = clickedTarget?.querySelector('img') as HTMLImageElement | null
     const clickedRect = clickedButton.getBoundingClientRect()
 
     // Ensure a single moving element (like the reference demo: move the same element between containers).
@@ -457,15 +466,45 @@ export default function HomePage() {
     if (root) gsap.set(root, { pointerEvents: 'none' })
     if (clickedItem) gsap.set(clickedItem, { zIndex: 2 })
 
+    // Give the hover/parallax a moment to settle back to flat before we start moving anything.
+    const settleDuration = 0.22
+    if (clickedTarget) {
+      tl.to(
+        clickedTarget,
+        {
+          rotationX: 0,
+          rotationY: 0,
+          z: 0,
+          scale: 1,
+          duration: settleDuration,
+          ease: 'power3.out',
+          overwrite: 'auto',
+        },
+        0,
+      )
+    }
+    if (clickedImg) {
+      tl.to(
+        clickedImg,
+        {
+          scale: 1,
+          duration: settleDuration,
+          ease: 'power3.out',
+          overwrite: 'auto',
+        },
+        0,
+      )
+    }
+
     // Subtle “lock-in” on the clicked preview.
     tl.to(
       clickedButton,
       { scale: 0.985, duration: 0.08, ease: 'power2.out', transformOrigin: 'center center' },
-      0,
+      settleDuration,
     ).to(
       clickedButton,
       { scale: 1, duration: 0.22, ease: 'power2.out', transformOrigin: 'center center' },
-      0.08,
+      settleDuration + 0.08,
     )
 
     // Neighbors ease offscreen while the clicked preview stays.
@@ -483,7 +522,7 @@ export default function HomePage() {
           duration: 0.4,
           ease: 'power2.in',
         },
-        0.15,
+        settleDuration + 0.15,
       )
     }
 
@@ -499,7 +538,7 @@ export default function HomePage() {
           },
           opacity: 0,
         },
-        0,
+        settleDuration,
       )
     }
 
@@ -515,17 +554,18 @@ export default function HomePage() {
           },
           opacity: 0,
         },
-        0,
+        settleDuration,
       )
     }
 
     // If we couldn't find neighbors (or refs), still hold until lock-in completes.
-    tl.to({}, { duration: Math.max(0, duration - 0.22) }, 0.22)
+    tl.to({}, { duration: Math.max(0, duration - 0.22) }, settleDuration + 0.22)
   }
 
   const closeSet = () => {
     if (isTransitioningRef.current) return
     isTransitioningRef.current = true
+    parallaxEnabledRef.current = false
 
     const setScope = setViewRef.current
     const movingEl = movingPreviewElRef.current
@@ -663,22 +703,33 @@ export default function HomePage() {
                 if (btn) gsap.set(btn, { clearProps: 'background,borderColor,boxShadow' })
               }
               isTransitioningRef.current = false
+
+              // If there are no neighbor settle animations, it's safe to re-enable parallax now.
+              if (leftSide.length === 0 && rightSide.length === 0) {
+                parallaxEnabledRef.current = true
+              }
             },
           })
 
-          gsap.to([...leftSide, ...rightSide], {
-            x: 0,
-            opacity: 1,
-            duration: 0.9,
-            ease: 'power3.inOut',
-            delay: 0.2,
-            onComplete: () => {
-              gsap.set([...leftSide, ...rightSide], { clearProps: 'all' })
-            },
-          })
+          const neighbors = [...leftSide, ...rightSide]
+          if (neighbors.length) {
+            gsap.to(neighbors, {
+              x: 0,
+              opacity: 1,
+              duration: 0.9,
+              ease: 'power3.inOut',
+              delay: 0.2,
+              onComplete: () => {
+                gsap.set(neighbors, { clearProps: 'all' })
+                // Only allow hover parallax after everything has settled.
+                parallaxEnabledRef.current = true
+              },
+            })
+          }
         } else {
           if (movingEl.parentElement) movingEl.parentElement.removeChild(movingEl)
           isTransitioningRef.current = false
+          parallaxEnabledRef.current = true
         }
       },
     })

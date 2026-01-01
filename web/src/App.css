@@ -130,10 +130,10 @@
 .hscroll-preview {
   padding: 0;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: transparent;
+  border: none;
   color: inherit;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: none;
 }
 
 .hscroll-preview:hover,
