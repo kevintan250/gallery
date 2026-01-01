@@ -92,7 +92,7 @@
   border-radius: 18px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(11, 15, 28, 0.1);
+  border: none;
   box-shadow: 0 16px 36px rgba(11, 15, 28, 0.14);
 }
 
@@ -265,10 +265,13 @@
   margin-right: 16px;
   box-shadow: none;
   position: relative;
+  z-index: 1;
 }
 
 .set-hero {
   margin-right: 14px;
+  position: relative;
+  z-index: 2;
 }
 
 .back-btn-vertical:hover {
@@ -334,12 +337,12 @@ button {
   box-shadow: none;
 }
 
-button:not(.hscroll-preview):hover {
+button:not(.hscroll-preview):not(.back-btn-vertical):hover {
   transform: translateY(-1px);
   box-shadow: none;
 }
 
-button:not(.hscroll-preview):active {
+button:not(.hscroll-preview):not(.back-btn-vertical):active {
   transform: translateY(0px);
 }
 
@@ -348,6 +351,13 @@ button.ghost {
   color: rgba(11, 15, 28, 0.75);
   border: 1px solid rgba(11, 15, 28, 0.12);
   box-shadow: none;
+  transition: transform 200ms ease, background 200ms ease, border-color 200ms ease;
+}
+
+button.ghost:hover {
+  transform: translateX(-4px);
+  background: rgba(11, 15, 28, 0.06);
+  border-color: rgba(11, 15, 28, 0.18);
 }
 
 button.accent {

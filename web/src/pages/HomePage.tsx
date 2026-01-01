@@ -319,8 +319,6 @@ export default function HomePage() {
       const updateLabelPosition = () => {
         if (!labelEl) return
         if (!lastMouse.has) return
-        const w = labelEl.offsetWidth
-        const h = labelEl.offsetHeight
         xSet?.(lastMouse.x)
         // Position label with top left corner near the cursor.
         ySet?.(lastMouse.y + labelOffsetY)
@@ -647,6 +645,15 @@ export default function HomePage() {
     const preview = getSetPreviewPhoto(set)
     const clickedTarget = clickedButton.querySelector('.flip-target') as HTMLElement | null
     const clickedImg = clickedTarget?.querySelector('img') as HTMLImageElement | null
+    
+    // Reset parallax transforms on the clicked element before starting FLIP
+    if (clickedTarget) {
+      gsap.set(clickedTarget, { rotationX: 0, rotationY: 0, z: 0, scale: 1 })
+    }
+    if (clickedImg) {
+      gsap.set(clickedImg, { scale: basePreviewImgScale })
+    }
+    
     const clickedRect = clickedButton.getBoundingClientRect()
 
     // Ensure a single moving element (like the reference demo: move the same element between containers).
@@ -769,6 +776,7 @@ export default function HomePage() {
             duration: 0.6,
             ease: 'power3.out',
             delay: 0.8,
+            clearProps: 'x',
           })
         }
 
@@ -779,7 +787,7 @@ export default function HomePage() {
             duration: 0.6,
             ease: 'power3.out',
             stagger: 0.04,
-            delay: 0.8,
+            delay: 0.84,
           })
         }
 
