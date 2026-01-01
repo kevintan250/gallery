@@ -1,12 +1,16 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { gsap } from 'gsap'
-import { Draggable, Flip, ScrollTrigger } from 'gsap/all'
+import { Draggable, Flip, Observer } from 'gsap/all'
 import { getPhotoSet, getSetPreviewPhoto, photoSets } from '../data/photoSets'
 
 export default function HomePage() {
   const sets = useMemo(() => photoSets, [])
   const [activeSetId, setActiveSetId] = useState<string | null>(null)
+
+  const currentCarouselIndexRef = useRef(0)
+  const inactivePreviewScale = 0.8
+  const basePreviewImgScale = 1.1
 
   const rootRef = useRef<HTMLDivElement | null>(null)
   const trackRef = useRef<HTMLDivElement | null>(null)
@@ -15,6 +19,7 @@ export default function HomePage() {
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const isTransitioningRef = useRef(false)
   const parallaxEnabledRef = useRef(true)
+  const parallaxKickRef = useRef<(() => void) | null>(null)
   const movingPreviewElRef = useRef<HTMLDivElement | null>(null)
   const lastScrollPos = useRef(0)
   const closingSetIdRef = useRef<string | null>(null)
@@ -35,7 +40,7 @@ export default function HomePage() {
   }, [activeSet])
 
   useLayoutEffect(() => {
-    gsap.registerPlugin(ScrollTrigger)
+    gsap.registerPlugin(Observer)
 
     if (activeSetId) return
 
@@ -44,38 +49,125 @@ export default function HomePage() {
     if (!root || !track) return
 
     const ctx = gsap.context(() => {
-      let tween: gsap.core.Tween | null = null
+      let animating = false
+      let observer: Observer | null = null
 
-      const build = () => {
-        tween?.scrollTrigger?.kill()
-        tween?.kill()
+      const viewport = root.querySelector<HTMLElement>('.hscroll')
+      if (!viewport) return
 
-        const header = document.querySelector('.topbar') as HTMLElement | null
-        const headerHeight = header?.getBoundingClientRect().height ?? 0
-        const totalScroll = track.scrollWidth - root.clientWidth
-        if (totalScroll <= 0) return
+      const getItems = () => Array.from(track.querySelectorAll<HTMLElement>('.hscroll-item'))
 
-        tween = gsap.to(track, {
-          x: -totalScroll,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: root,
-            start: `top top+=${headerHeight}`,
-            end: `+=${totalScroll}`,
-            scrub: true,
-            pin: true,
-            anticipatePin: 1,
-          },
-        })
+      const settlePreviewParallax = () => {
+        const previews = Array.from(track.querySelectorAll<HTMLElement>('.hscroll-preview'))
+        for (const preview of previews) {
+          const target = preview.querySelector<HTMLElement>('.flip-target')
+          const img = preview.querySelector<HTMLImageElement>('.flip-target img')
+          if (target) {
+            gsap.to(target, {
+              rotationX: 0,
+              rotationY: 0,
+              z: 0,
+              duration: 0.18,
+              ease: 'power2.out',
+              overwrite: 'auto',
+            })
+          }
+          if (img) {
+            gsap.to(img, {
+              scale: basePreviewImgScale,
+              duration: 0.18,
+              ease: 'power2.out',
+              overwrite: 'auto',
+            })
+          }
+        }
       }
 
-      build()
+      const applyPreviewScales = (activeIndex: number) => {
+        const items = getItems()
+        for (let i = 0; i < items.length; i++) {
+          const flipTarget = items[i].querySelector<HTMLElement>('.hscroll-preview .flip-target')
+          if (!flipTarget) continue
+          const targetScale = i === activeIndex ? 1 : inactivePreviewScale
+          gsap.set(flipTarget, { scale: targetScale, transformOrigin: 'center center' })
+        }
+      }
+
+      const computeTrackXForIndex = (index: number) => {
+        const items = getItems()
+        if (items.length === 0) return 0
+        const safeIndex = Math.max(0, Math.min(items.length - 1, index))
+        const item = items[safeIndex]
+
+        const viewportCenter = viewport.clientWidth / 2
+        const itemCenter = item.offsetLeft + item.offsetWidth / 2
+        return -(itemCenter - viewportCenter)
+      }
+
+      const goTo = (nextIndex: number) => {
+        if (animating) return
+        if (isTransitioningRef.current) return
+
+        const items = getItems()
+        if (items.length === 0) return
+
+        const clamped = Math.max(0, Math.min(items.length - 1, nextIndex))
+        const prevIndex = currentCarouselIndexRef.current
+        if (clamped === prevIndex) return
+
+        animating = true
+
+        // Ensure any hover/parallax state resolves even if the mouse doesn't move.
+        parallaxEnabledRef.current = false
+        settlePreviewParallax()
+
+        const next = clamped
+        const moveDuration = 0.85
+        const moveEase = 'power2.inOut'
+
+        // Keep everything at the inactive scale except the current (prev) which is full size.
+        // We'll animate prev down and next up over the exact same duration as the slide.
+        for (let i = 0; i < items.length; i++) {
+          const flipTarget = items[i].querySelector<HTMLElement>('.hscroll-preview .flip-target')
+          if (!flipTarget) continue
+          if (i === prevIndex) continue
+          gsap.set(flipTarget, { scale: inactivePreviewScale, transformOrigin: 'center center' })
+        }
+
+        const prevFlipTarget = items[prevIndex]?.querySelector<HTMLElement>('.hscroll-preview .flip-target')
+        const nextFlipTarget = items[next]?.querySelector<HTMLElement>('.hscroll-preview .flip-target')
+
+        // Ensure known start scales.
+        if (prevFlipTarget) gsap.set(prevFlipTarget, { scale: 1, transformOrigin: 'center center' })
+        if (nextFlipTarget) gsap.set(nextFlipTarget, { scale: inactivePreviewScale, transformOrigin: 'center center' })
+
+        gsap
+          .timeline({
+            defaults: { duration: moveDuration, ease: moveEase, overwrite: 'auto' },
+            onComplete: () => {
+              currentCarouselIndexRef.current = next
+              applyPreviewScales(next)
+              animating = false
+              parallaxEnabledRef.current = true
+              parallaxKickRef.current?.()
+            },
+          })
+          .to(track, { x: computeTrackXForIndex(next) }, 0)
+            .to(prevFlipTarget, { scale: inactivePreviewScale }, 0)
+          .to(nextFlipTarget, { scale: 1 }, 0)
+      }
+
+      const refresh = () => {
+        gsap.set(track, { x: computeTrackXForIndex(currentCarouselIndexRef.current) })
+        applyPreviewScales(currentCarouselIndexRef.current)
+      }
+
+      refresh()
 
       // If images load after initial layout, scrollWidth can change — refresh measurements.
       const imgs = Array.from(track.querySelectorAll('img'))
       const onImgLoad = () => {
-        build()
-        ScrollTrigger.refresh()
+        refresh()
       }
       for (const img of imgs) {
         if (!img.complete) {
@@ -88,55 +180,43 @@ export default function HomePage() {
         const savedPos = lastScrollPos.current
         window.scrollTo(0, savedPos)
         lastScrollPos.current = 0
-        ScrollTrigger.refresh()
-
-        const st = (tween as unknown as { scrollTrigger?: ScrollTrigger } | null)?.scrollTrigger
-
-        if (tween && st) {
-          const progress = (savedPos - st.start) / (st.end - st.start)
-          const clamped = Math.max(0, Math.min(1, progress))
-          ;(tween as unknown as gsap.core.Animation).progress(clamped)
-        }
       }
 
-      const onWheel = (e: WheelEvent) => {
-        const st = (tween as unknown as { scrollTrigger?: ScrollTrigger } | null)?.scrollTrigger
-        if (!st) return
+      observer = Observer.create({
+        target: root,
+        type: 'wheel,touch',
+        wheelSpeed: -1,
+        tolerance: 12,
+        preventDefault: true,
+        onDown: () => {
+          if (animating) return
+          goTo(currentCarouselIndexRef.current - 1)
+        },
+        onUp: () => {
+          if (animating) return
+          goTo(currentCarouselIndexRef.current + 1)
+        },
+      })
 
-        // Keep scrolling bounded to the horizontal-carousel scroll range.
-        // This prevents the pinned section from "releasing" and moving vertically
-        // when the user keeps scrolling past the end.
-        const dominantDelta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
-        const deltaMultiplier = e.deltaMode === 1 ? 16 : 1
-        const delta = dominantDelta * deltaMultiplier
-
-        const minY = st.start
-        const maxY = st.end
-        const currentY = window.scrollY
-
-        if (currentY >= minY && currentY <= maxY) {
-          e.preventDefault()
-          const nextY = Math.max(minY, Math.min(maxY, currentY + delta))
-          window.scrollTo(0, nextY)
-        }
-      }
-      root.addEventListener('wheel', onWheel, { passive: false })
+      // Ensure we're snapped to the first item on mount.
+      gsap.set(track, { x: computeTrackXForIndex(0) })
+      currentCarouselIndexRef.current = 0
+      applyPreviewScales(0)
 
       const onResize = () => {
-        build()
-        ScrollTrigger.refresh()
+        refresh()
       }
       window.addEventListener('resize', onResize)
 
       return () => {
         window.removeEventListener('resize', onResize)
-        root.removeEventListener('wheel', onWheel)
+        observer?.kill()
+        observer = null
+        parallaxKickRef.current = null
         for (const img of imgs) {
           img.removeEventListener('load', onImgLoad)
           img.removeEventListener('error', onImgLoad)
         }
-        tween?.scrollTrigger?.kill()
-        tween?.kill()
       }
     }, root)
 
@@ -153,10 +233,70 @@ export default function HomePage() {
       gsap.set('.hscroll-item', { clearProps: 'transform,opacity' })
       gsap.set('.hscroll-preview', { clearProps: 'transform' })
 
+      const lastMouse = { x: 0, y: 0, has: false }
+      const onPointerMove = (e: PointerEvent) => {
+        if (e.pointerType !== 'mouse') return
+        lastMouse.x = e.clientX
+        lastMouse.y = e.clientY
+        lastMouse.has = true
+      }
+
+      // Track mouse position even when stationary over the carousel.
+      scope.addEventListener('pointermove', onPointerMove, { passive: true })
+
+      const kickParallaxUnderCursor = () => {
+        if (!lastMouse.has) return
+        if (!parallaxEnabledRef.current) return
+        if (isTransitioningRef.current) return
+
+        const el = document.elementFromPoint(lastMouse.x, lastMouse.y)
+        if (!el) return
+
+        const preview = (el as HTMLElement).closest?.('.hscroll-preview') as HTMLElement | null
+        if (!preview) return
+
+        const target = preview.querySelector<HTMLElement>('.flip-target')
+        const img = preview.querySelector<HTMLImageElement>('.flip-target img')
+        if (!target) return
+
+        const r = target.getBoundingClientRect()
+        if (r.width <= 0 || r.height <= 0) return
+
+        const px = (lastMouse.x - r.left) / r.width
+        const py = (lastMouse.y - r.top) / r.height
+        const clampedX = Math.max(0, Math.min(1, px))
+        const clampedY = Math.max(0, Math.min(1, py))
+
+        const maxTilt = 6
+        const hoverZ = 22
+        const hoverImgScale = basePreviewImgScale
+
+        gsap.to(target, {
+          rotationX: gsap.utils.interpolate(-maxTilt, maxTilt, clampedY),
+          rotationY: gsap.utils.interpolate(maxTilt, -maxTilt, clampedX),
+          z: hoverZ,
+          duration: 0.25,
+          ease: 'power3.out',
+          overwrite: 'auto',
+        })
+
+        if (img) {
+          gsap.to(img, {
+            scale: hoverImgScale,
+            duration: 0.25,
+            ease: 'power3.out',
+            overwrite: 'auto',
+          })
+        }
+      }
+
+      parallaxKickRef.current = kickParallaxUnderCursor
+
       const previews = Array.from(scope.querySelectorAll<HTMLElement>('.hscroll-preview'))
       const cleanups: Array<() => void> = []
 
-      for (const preview of previews) {
+      for (let previewIndex = 0; previewIndex < previews.length; previewIndex++) {
+        const preview = previews[previewIndex]
         const target = preview.querySelector<HTMLElement>('.flip-target')
         const img = preview.querySelector<HTMLElement>('.flip-target img')
         if (!target) continue
@@ -176,6 +316,7 @@ export default function HomePage() {
             willChange: 'transform',
             force3D: true,
             transformOrigin: 'center',
+            scale: basePreviewImgScale,
           })
         }
 
@@ -187,7 +328,7 @@ export default function HomePage() {
 
         const maxTilt = 6
         const hoverZ = 22
-        const hoverImgScale = 1.1
+        const hoverImgScale = basePreviewImgScale
 
         const onEnter = (e: PointerEvent) => {
           if (e.pointerType === 'touch') return
@@ -221,9 +362,9 @@ export default function HomePage() {
           if (isTransitioningRef.current) return
           outerRX(0)
           outerRY(0)
-          scaleTo(1)
+          scaleTo(previewIndex === currentCarouselIndexRef.current ? 1 : inactivePreviewScale)
           zTo(0)
-          innerScale?.(1)
+          innerScale?.(basePreviewImgScale)
         }
 
         preview.addEventListener('pointerenter', onEnter)
@@ -235,11 +376,15 @@ export default function HomePage() {
           preview.removeEventListener('pointermove', onMove)
           preview.removeEventListener('pointerleave', onLeave)
           gsap.set(target, { rotationX: 0, rotationY: 0, scale: 1, z: 0 })
-          if (img) gsap.set(img, { scale: 1 })
+          if (img) gsap.set(img, { scale: basePreviewImgScale })
         })
       }
 
       return () => {
+        scope.removeEventListener('pointermove', onPointerMove)
+        if (parallaxKickRef.current === kickParallaxUnderCursor) {
+          parallaxKickRef.current = null
+        }
         cleanups.forEach((fn) => fn())
       }
     }, scope)

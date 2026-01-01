@@ -78,6 +78,7 @@
   display: flex;
   align-items: center;
   overflow: hidden;
+  touch-action: none;
 }
 
 .flip-overlay {
