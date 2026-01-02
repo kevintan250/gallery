@@ -3,10 +3,17 @@ import { flushSync } from 'react-dom'
 import { gsap } from 'gsap'
 import { Draggable, Flip, Observer } from 'gsap/all'
 import { getPhotoSet, getSetPreviewPhoto, photoSets } from '../data/photoSets'
+import { useGallery } from '../context/useGallery'
 
 export default function HomePage() {
+  const {
+    activeSetId,
+    setActiveSetId,
+    setIsTransitioning,
+    setClosePhase,
+    registerCloseHandler,
+  } = useGallery()
   const sets = useMemo(() => photoSets, [])
-  const [activeSetId, setActiveSetId] = useState<string | null>(null)
   const [hoverLabelContent, setHoverLabelContent] = useState<{ title: string; subtitle: string }>(
     { title: '', subtitle: '' },
   )
@@ -20,7 +27,6 @@ export default function HomePage() {
   const rootRef = useRef<HTMLDivElement | null>(null)
   const trackRef = useRef<HTMLDivElement | null>(null)
   const setViewRef = useRef<HTMLElement | null>(null)
-  const setHeroSlotRef = useRef<HTMLDivElement | null>(null)
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const isTransitioningRef = useRef(false)
   const parallaxEnabledRef = useRef(true)
@@ -633,11 +639,13 @@ export default function HomePage() {
   const openSetInPlace = (setId: string, clickedButton: HTMLButtonElement) => {
     if (isTransitioningRef.current) return
     isTransitioningRef.current = true
+    setIsTransitioning(true)
 
     gsap.registerPlugin(Flip)
     const set = getPhotoSet(setId)
     if (!set) {
       isTransitioningRef.current = false
+      setIsTransitioning(false)
       return
     }
 
@@ -747,48 +755,83 @@ export default function HomePage() {
         flushSync(() => setActiveSetId(setId))
         window.scrollTo(0, 0)
 
-        const slot = setHeroSlotRef.current
+        const slot = document.getElementById('dynamic-island-hero-slot')
+        const destImg = slot?.querySelector('img')
         const setScope = setViewRef.current
         const movingEl = movingPreviewElRef.current
-        if (!slot || !setScope || !movingEl) {
+        if (!slot || !destImg || !setScope || !movingEl) {
           isTransitioningRef.current = false
+          setIsTransitioning(false)
           return
         }
 
-        // Grab the starting state, then reparent into the final container and FLIP.
-        const state = Flip.getState(movingEl, { props: 'borderRadius,boxShadow' })
-        slot.appendChild(movingEl)
-        movingEl.style.cssText = ''
+        // Hide the real destination image so we can animate the proxy in its place.
+        gsap.set(destImg, { opacity: 0 })
 
-        const transition = Flip.from(state, {
-          scale: false,
-          absolute: true,
+        // Capture the proxy's current (overlay) state, then reparent into the final slot.
+        // This makes the end position accurate even while the Dynamic Island is resizing.
+        const proxyState = Flip.getState(movingEl, { props: 'borderRadius,boxShadow' })
+
+        slot.appendChild(movingEl)
+        movingEl.style.position = 'absolute'
+        movingEl.style.left = '0'
+        movingEl.style.top = '0'
+        movingEl.style.width = '100%'
+        movingEl.style.height = '100%'
+        movingEl.style.transform = ''
+
+        const toRadius = window.getComputedStyle(destImg).borderRadius
+        gsap.set(movingEl, { borderRadius: toRadius })
+
+        Flip.from(proxyState, {
+          targets: movingEl,
           duration: 0.9,
           ease: 'power3.inOut',
-          paused: true,
+          absolute: true,
           props: 'borderRadius,boxShadow',
+          onStart: () => {
+            // Match the Dynamic Island hero (no base zoom) by the end.
+            const img = movingEl.querySelector('img')
+            if (img) {
+              gsap.to(img, {
+                scale: 1,
+                duration: 0.9,
+                ease: 'power3.inOut',
+                overwrite: 'auto',
+              })
+            }
+          },
           onComplete: () => {
+            gsap.set(destImg, { opacity: 1 })
+            if (movingEl.parentElement) movingEl.parentElement.removeChild(movingEl)
+
             // Restore flip-target in carousel in case we navigate back
             if (clickedItem) {
               const flipTarget = clickedItem.querySelector('.flip-target') as HTMLElement
               if (flipTarget) gsap.set(flipTarget, { clearProps: 'opacity', opacity: 1 })
             }
+            isTransitioningRef.current = false
+            setIsTransitioning(false)
           },
           onInterrupt: () => {
-            // Defensive: restore if interrupted
             if (clickedItem) {
               const flipTarget = clickedItem.querySelector('.flip-target') as HTMLElement
               if (flipTarget) gsap.set(flipTarget, { clearProps: 'opacity', opacity: 1 })
             }
+            // If interrupted, don't leave the island hero hidden.
+            gsap.set(destImg, { clearProps: 'opacity', opacity: 1 })
+            isTransitioningRef.current = false
+            setIsTransitioning(false)
           },
         })
-          .progress(1)
-          .progress(0)
 
-        transition.play(0)
+        // Ensure movingEl has the correct initial border radius (from carousel)
+        // and final border radius (from dynamic island) is handled by Flip.fit if we set it on movingEl?
+        // Flip.fit matches the target state. destImg has borderRadius: 4px.
+        // movingEl has borderRadius: 18px (from carousel).
+        // So props: 'borderRadius' should work.
 
-        const headerBits = setScope.querySelectorAll<HTMLElement>('[data-set-anim="header"]')
-        const backBtn = setScope.querySelector<HTMLElement>('.back-btn-vertical')
+
         const gridEl = setScope.querySelector<HTMLElement>('.set-grid')
         const gridItems = Array.from(setScope.querySelectorAll<HTMLElement>('[data-set-anim="grid"]'))
 
@@ -798,28 +841,9 @@ export default function HomePage() {
           gsap.killTweensOf(gridEl)
           gsap.set(gridEl, { autoAlpha: 1, overwrite: 'auto' })
         }
+        
+        // Removed header/backBtn animations as they are in DynamicIsland now
 
-        if (backBtn) {
-          gsap.from(backBtn, {
-            x: 40,
-            opacity: 0,
-            duration: 0.6,
-            ease: 'power3.out',
-            delay: 0.8,
-            clearProps: 'x',
-          })
-        }
-
-        if (headerBits.length) {
-          gsap.from(headerBits, {
-            x: -28,
-            opacity: 0,
-            duration: 0.6,
-            ease: 'power3.out',
-            stagger: 0.04,
-            delay: 0.84,
-          })
-        }
 
         if (gridItems.length) {
           const count = gridItems.length
@@ -860,12 +884,12 @@ export default function HomePage() {
             gsap.set(gridItems, { opacity: 1, clearProps: 'opacity' })
           })
         }
-
-        isTransitioningRef.current = false
+        // Keep transition locked until the hero FLIP finishes.
       },
       onInterrupt: () => {
         if (root) gsap.set(root, { pointerEvents: '' })
         isTransitioningRef.current = false
+        setIsTransitioning(false)
       },
     })
 
@@ -955,9 +979,11 @@ export default function HomePage() {
     })
   }
 
-  const closeSet = () => {
+  const closeSet = useCallback(() => {
     if (isTransitioningRef.current) return
     isTransitioningRef.current = true
+    setIsTransitioning(true)
+    setClosePhase('grid-exit')
     disablePreviewParallax()
 
     // Ensure we restore the carousel centered on the set we're closing.
@@ -972,26 +998,84 @@ export default function HomePage() {
     if (!setScope || !movingEl) {
       setActiveSetId(null)
       isTransitioningRef.current = false
+      setIsTransitioning(false)
+      setClosePhase('idle')
       return
     }
 
     const tl = gsap.timeline({
       onComplete: () => {
-        // Capture the exact position of the hero image BEFORE we unmount the set view.
-        // This ensures we have the correct "start" coordinates even if sticky headers or
-        // scroll positions make Flip.getState() tricky after unmounting.
-        const startRect = movingEl.getBoundingClientRect()
         const currentSetId = activeSetId
+
+        // The set grid has finished exiting; we're about to start the hero FLIP back.
+        setClosePhase('hero-exit')
+
+        // Capture the start position from the Dynamic Island hero slot BEFORE unmount.
+        const slot = document.getElementById('dynamic-island-hero-slot')
+        const slotImg = slot?.querySelector('img') as HTMLImageElement | null
+        const overlay = overlayRef.current
+
+        if (!currentSetId || !slot || !slotImg || !overlay) {
+          flushSync(() => setActiveSetId(null))
+          isTransitioningRef.current = false
+          setIsTransitioning(false)
+          setClosePhase('idle')
+          enablePreviewParallax()
+          return
+        }
+
+        const slotRect = slot.getBoundingClientRect()
+
+        // Ensure a single moving element exists.
+        if (!movingPreviewElRef.current) {
+          const el = document.createElement('div')
+          el.className = 'moving-preview'
+          const img = document.createElement('img')
+          el.appendChild(img)
+          movingPreviewElRef.current = el
+        }
+
+        const movingEl = movingPreviewElRef.current
+        if (!movingEl) {
+          flushSync(() => setActiveSetId(null))
+          isTransitioningRef.current = false
+          setIsTransitioning(false)
+          setClosePhase('idle')
+          enablePreviewParallax()
+          return
+        }
+
+        // Point the proxy at the same hero image.
+        const set = getPhotoSet(currentSetId)
+        const hero = set?.photos?.[0]
+        const proxyImg = movingEl.querySelector('img')
+        if (proxyImg && hero) {
+          proxyImg.src = hero.src
+          proxyImg.alt = hero.alt ?? ''
+          gsap.set(proxyImg, { scale: 1, transformOrigin: 'center center', force3D: true })
+        }
+
+        overlay.appendChild(movingEl)
+        movingEl.style.position = 'absolute'
+        movingEl.style.left = `${slotRect.left}px`
+        movingEl.style.top = `${slotRect.top}px`
+        movingEl.style.width = `${slotRect.width}px`
+        movingEl.style.height = `${slotRect.height}px`
+        movingEl.style.transform = ''
+        movingEl.style.borderRadius = window.getComputedStyle(slotImg).borderRadius || '6px'
+        gsap.set(movingEl, { opacity: 1 })
+        gsap.set(slotImg, { opacity: 0 })
 
         closingSetIdRef.current = currentSetId
         flushSync(() => setActiveSetId(null))
 
         const root = rootRef.current
         const track = trackRef.current
-        const overlay = overlayRef.current
 
         if (!root || !track || !overlay) {
           isTransitioningRef.current = false
+          setIsTransitioning(false)
+          setClosePhase('idle')
           return
         }
 
@@ -1004,28 +1088,36 @@ export default function HomePage() {
           // the smaller wrapper when we swap back to the real preview.
           const targetRect = targetWrapper.getBoundingClientRect()
 
-          overlay.appendChild(movingEl)
-          
-          // 1. Force movingEl to the START position immediately to prevent blinking
-          movingEl.style.position = 'absolute'
-          movingEl.style.left = `${startRect.left}px`
-          movingEl.style.top = `${startRect.top}px`
-          movingEl.style.width = `${startRect.width}px`
-          movingEl.style.height = `${startRect.height}px`
-          movingEl.style.transform = ''
-          movingEl.style.borderRadius = '6px'
-          
-          // 2. Capture this as the "from" state for Flip
+          // Capture this as the "from" state for Flip (start = Dynamic Island hero).
           const state = Flip.getState(movingEl, { props: 'borderRadius,boxShadow' })
 
-          // 3. Set movingEl to the END position (the carousel item)
+          // Set movingEl to the END position (the carousel item).
           movingEl.style.left = `${targetRect.left}px`
           movingEl.style.top = `${targetRect.top}px`
           movingEl.style.width = `${targetRect.width}px`
           movingEl.style.height = `${targetRect.height}px`
           movingEl.style.borderRadius = '18px'
 
+          // Explicitly tween corner radius + inner image zoom to match carousel.
+          const fromRadius = window.getComputedStyle(slotImg).borderRadius || '6px'
+          const toRadius = '18px'
+          const proxyImg2 = movingEl.querySelector('img')
+          if (proxyImg2) {
+            gsap.to(proxyImg2, {
+              scale: basePreviewImgScale,
+              duration: 0.9,
+              ease: 'power3.inOut',
+              overwrite: 'auto',
+            })
+          }
+          gsap.fromTo(
+            movingEl,
+            { borderRadius: fromRadius },
+            { borderRadius: toRadius, duration: 0.9, ease: 'power3.inOut', overwrite: 'auto' },
+          )
+
           const rootRect = root.getBoundingClientRect()
+
           const offscreen = (rootRect.width ?? window.innerWidth) + 80
           const leftSide: HTMLElement[] = []
           const rightSide: HTMLElement[] = []
@@ -1097,7 +1189,7 @@ export default function HomePage() {
             targets: movingEl,
             duration: 0.9,
             ease: 'power3.inOut',
-            scale: false,
+            scale: true,
             absolute: true,
             props: 'borderRadius,boxShadow',
             onComplete: () => {
@@ -1106,6 +1198,7 @@ export default function HomePage() {
               closingSetIdRef.current = null
               
               if (targetImg) gsap.set(targetImg, { clearProps: 'opacity', opacity: 1 })
+              gsap.set(slotImg, { clearProps: 'opacity', opacity: 1 })
               if (clickedItem) {
                 const btn = clickedItem.querySelector('.hscroll-preview') as HTMLElement
                 if (btn) gsap.set(btn, { clearProps: 'background,borderColor,boxShadow' })
@@ -1113,6 +1206,8 @@ export default function HomePage() {
                 if (flipTarget) gsap.set(flipTarget, { clearProps: 'opacity', opacity: 1 })
               }
               isTransitioningRef.current = false
+              setIsTransitioning(false)
+              setClosePhase('idle')
 
               // If there are no neighbor settle animations, it's safe to re-enable parallax now.
               if (leftSide.length === 0 && rightSide.length === 0) {
@@ -1122,6 +1217,9 @@ export default function HomePage() {
             onInterrupt: () => {
               // Defensive: ensure we don't strand the gallery with parallax disabled.
               isTransitioningRef.current = false
+              setIsTransitioning(false)
+              setClosePhase('idle')
+              gsap.set(slotImg, { clearProps: 'opacity', opacity: 1 })
               enablePreviewParallax()
             },
           })
@@ -1154,11 +1252,15 @@ export default function HomePage() {
         } else {
           if (movingEl.parentElement) movingEl.parentElement.removeChild(movingEl)
           isTransitioningRef.current = false
+          setIsTransitioning(false)
+          setClosePhase('idle')
           enablePreviewParallax()
         }
       },
       onInterrupt: () => {
         isTransitioningRef.current = false
+        setIsTransitioning(false)
+        setClosePhase('idle')
         enablePreviewParallax()
       },
     })
@@ -1196,37 +1298,19 @@ export default function HomePage() {
         0,
       )
     }
+  }, [
+    activeSetId,
+    sets,
+    disablePreviewParallax,
+    setActiveSetId,
+    enablePreviewParallax,
+    setClosePhase,
+    setIsTransitioning,
+  ])
 
-    const headerBits = setScope.querySelectorAll('[data-set-anim="header"]')
-    const backBtn = setScope.querySelector('.back-btn-vertical')
-
-    if (backBtn) {
-      tl.to(
-        backBtn,
-        {
-          x: 40,
-          opacity: 0,
-          duration: 0.4,
-          ease: 'power2.in',
-        },
-        0,
-      )
-    }
-
-    if (headerBits.length) {
-      tl.to(
-        headerBits,
-        {
-          x: -20,
-          opacity: 0,
-          duration: 0.4,
-          ease: 'power2.in',
-          stagger: 0.02,
-        },
-        0,
-      )
-    }
-  }
+  useEffect(() => {
+    registerCloseHandler(closeSet)
+  }, [registerCloseHandler, closeSet])
 
   return (
     <>
@@ -1235,62 +1319,8 @@ export default function HomePage() {
       {activeSetId ? (
         activeSet ? (
           <section className="set-page" ref={setViewRef}>
-            <div className="set-header">
-              <div 
-                className="dynamic-island"
-                onPointerEnter={(e) => {
-                  if (e.pointerType === 'touch') return
-                  const target = e.currentTarget
-                  gsap.to(target, {
-                    z: 35,
-                    duration: 0.25,
-                    ease: 'power3.out',
-                  })
-                }}
-                onPointerMove={(e) => {
-                  if (e.pointerType === 'touch') return
-                  const target = e.currentTarget
-                  const r = target.getBoundingClientRect()
-                  if (r.width <= 0 || r.height <= 0) return
-
-                  const px = (e.clientX - r.left) / r.width
-                  const py = (e.clientY - r.top) / r.height
-                  const clampedX = Math.max(0, Math.min(1, px))
-                  const clampedY = Math.max(0, Math.min(1, py))
-
-                  const maxTilt = 8
-                  const rotX = gsap.utils.interpolate(-maxTilt, maxTilt, clampedY)
-                  const rotY = gsap.utils.interpolate(maxTilt, -maxTilt, clampedX)
-
-                  gsap.to(target, {
-                    rotationX: rotX,
-                    rotationY: rotY,
-                    duration: 0.25,
-                    ease: 'power3.out',
-                  })
-                }}
-                onPointerLeave={(e) => {
-                  if (e.pointerType === 'touch') return
-                  const target = e.currentTarget
-                  gsap.to(target, {
-                    rotationX: 0,
-                    rotationY: 0,
-                    z: 0,
-                    duration: 0.25,
-                    ease: 'power3.out',
-                  })
-                }}
-              >
-                <button className="island-close-btn" type="button" onClick={closeSet} aria-label="Close">
-                  ←
-                </button>
-                <div className="island-preview-wrapper">
-                  <div className="set-hero-slot" ref={setHeroSlotRef} />
-                </div>
-                <h2 className="island-title" data-set-anim="header">
-                  {activeSet.name}
-                </h2>
-              </div>
+            <div className="set-header" style={{ minHeight: '80px' }}>
+              {/* Header content moved to DynamicIsland */}
             </div>
 
             <div className="set-grid" role="list">
