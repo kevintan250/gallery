@@ -28,6 +28,9 @@ export default function HomePage() {
   const trackRef = useRef<HTMLDivElement | null>(null)
   const setViewRef = useRef<HTMLElement | null>(null)
   const overlayRef = useRef<HTMLDivElement | null>(null)
+  const canvasContainerRef = useRef<HTMLDivElement | null>(null)
+  const canvasRef = useRef<HTMLDivElement | null>(null)
+  const [zoomLevel, setZoomLevel] = useState(1)
   const isTransitioningRef = useRef(false)
   const parallaxEnabledRef = useRef(true)
   const parallaxKickRef = useRef<(() => void) | null>(null)
@@ -61,8 +64,8 @@ export default function HomePage() {
     return activeSet.photos.slice(1).map((photo) => ({
       rotation: photo.rotation ?? 0,
       scale: photo.scale ?? 1,
-      x: photo.x ?? 0,
-      y: photo.y ?? 0,
+      x: photo.x ?? 1500,
+      y: photo.y ?? 1500,
       width: photo.width,
       height: photo.height,
     }))
@@ -604,6 +607,64 @@ export default function HomePage() {
 
     return () => ctx.revert()
   }, [activeSetId, gridTransforms])
+
+  // Zoom and pan functionality
+  useEffect(() => {
+    if (!activeSetId) return
+    const container = canvasContainerRef.current
+    const canvas = canvasRef.current
+    if (!container || !canvas) return
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        
+        const rect = container.getBoundingClientRect()
+        const mouseX = e.clientX - rect.left
+        const mouseY = e.clientY - rect.top
+        
+        const scrollLeft = container.scrollLeft
+        const scrollTop = container.scrollTop
+        
+        const delta = -e.deltaY * 0.001
+        const newZoom = Math.min(Math.max(0.1, zoomLevel + delta), 5)
+        
+        const ratio = newZoom / zoomLevel
+        
+        setZoomLevel(newZoom)
+        
+        requestAnimationFrame(() => {
+          container.scrollLeft = scrollLeft * ratio + mouseX * (ratio - 1)
+          container.scrollTop = scrollTop * ratio + mouseY * (ratio - 1)
+        })
+      }
+    }
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    return () => container.removeEventListener('wheel', handleWheel)
+  }, [activeSetId, zoomLevel])
+
+  // Center canvas on initial load
+  useEffect(() => {
+    if (!activeSetId) return
+    const container = canvasContainerRef.current
+    const canvas = canvasRef.current
+    if (!container || !canvas) return
+
+    // Use setTimeout to ensure layout is complete
+    const timer = setTimeout(() => {
+      const centerX = 1500  // Center point of canvas
+      const centerY = 1500  // Center point of canvas
+      const containerWidth = container.clientWidth
+      const containerHeight = container.clientHeight
+      
+      // Position so that (1500, 1500) appears in center of viewport
+      container.scrollLeft = centerX - (containerWidth / 2)
+      container.scrollTop = centerY - (containerHeight / 2)
+    }, 0)
+    
+    return () => clearTimeout(timer)
+  }, [activeSetId])
 
   useLayoutEffect(() => {
     const el = hoverLabelRef.current
@@ -1325,29 +1386,42 @@ export default function HomePage() {
               {/* Header content moved to DynamicIsland */}
             </div>
 
-            <div className="set-grid" role="list">
-              {activeSet.photos.slice(1).map((photo, index) => {
-                const t = gridTransforms[index]
-                return (
-                  <div
-                    key={photo.id}
-                    className="set-grid-item"
-                    role="listitem"
-                    data-set-anim="grid"
-                    style={{
-                      left: t?.x ?? 0,
-                      top: t?.y ?? 0,
-                      width: t?.width ?? 300,
-                      height: t?.height ?? 240,
-                      transform: t?.rotation || t?.scale !== 1
-                        ? `rotate(${t.rotation}deg) scale(${t.scale})`
-                        : undefined,
-                    }}
-                  >
-                    <img src={photo.src} alt={photo.alt} loading="lazy" />
-                  </div>
-                )
-              })}
+            <div className="set-canvas-container" ref={canvasContainerRef}>
+              <div 
+                className="set-canvas" 
+                ref={canvasRef}
+                style={{
+                  transform: `scale(${zoomLevel})`,
+                  transformOrigin: '0 0',
+                }}
+              >
+                <div className="set-grid" role="list">
+                  {activeSet.photos.slice(1).map((photo, index) => {
+                    const t = gridTransforms[index]
+                    const width = t?.width ?? 300
+                    const height = t?.height ?? 240
+                    return (
+                      <div
+                        key={photo.id}
+                        className="set-grid-item"
+                        role="listitem"
+                        data-set-anim="grid"
+                        style={{
+                          left: (t?.x ?? 1500) - width / 2,
+                          top: (t?.y ?? 1500) - height / 2,
+                          width: width,
+                          height: height,
+                          transform: t?.rotation || t?.scale !== 1
+                            ? `rotate(${t.rotation}deg) scale(${t.scale})`
+                            : undefined,
+                        }}
+                      >
+                        <img src={photo.src} alt={photo.alt} loading="lazy" />
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
             </div>
           </section>
         ) : (

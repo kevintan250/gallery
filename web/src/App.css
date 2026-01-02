@@ -419,6 +419,26 @@
   font-size: 13px;
 }
 
+.set-canvas-container {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 80px);
+  overflow: auto;
+  cursor: grab;
+  background: linear-gradient(145deg, #f7f9ff, #eef3ff 60%, #f6f8fb);
+}
+
+.set-canvas-container:active {
+  cursor: grabbing;
+}
+
+.set-canvas {
+  position: relative;
+  width: 3000px;
+  height: 3000px;
+  will-change: transform;
+}
+
 .set-grid {
   position: relative;
   width: 100%;
