@@ -189,13 +189,8 @@
   height: 340px;
   border-radius: 18px;
   overflow: hidden;
-  box-shadow: none;
-  transition: box-shadow 160ms ease;
-}
-
-.hscroll-pin[data-gallery-interactive='true'] .hscroll-preview:hover .flip-target,
-.hscroll-pin[data-gallery-interactive='true'] .hscroll-preview:active .flip-target {
   box-shadow: 0 16px 36px rgba(11, 15, 28, 0.14);
+  transition: box-shadow 160ms ease;
 }
 
 .hscroll-preview img {

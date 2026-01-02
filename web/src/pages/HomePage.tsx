@@ -691,6 +691,12 @@ export default function HomePage() {
     const root = rootRef.current
     const track = trackRef.current
     const clickedItem = clickedButton.closest('.hscroll-item') as HTMLElement | null
+    
+    // Hide the flip-target (which has the shadow) so only the moving element's shadow is visible
+    if (clickedItem) {
+      const flipTarget = clickedItem.querySelector('.flip-target') as HTMLElement
+      if (flipTarget) gsap.set(flipTarget, { opacity: 0 })
+    }
 
     // Remember which carousel item corresponds to this set so we can restore it on exit.
     if (clickedItem && track) {
@@ -741,7 +747,7 @@ export default function HomePage() {
         }
 
         // Grab the starting state, then reparent into the final container and FLIP.
-        const state = Flip.getState(movingEl, { props: 'borderRadius' })
+        const state = Flip.getState(movingEl, { props: 'borderRadius,boxShadow' })
         slot.appendChild(movingEl)
         movingEl.style.cssText = ''
 
@@ -751,7 +757,21 @@ export default function HomePage() {
           duration: 0.9,
           ease: 'power3.inOut',
           paused: true,
-          props: 'borderRadius',
+          props: 'borderRadius,boxShadow',
+          onComplete: () => {
+            // Restore flip-target in carousel in case we navigate back
+            if (clickedItem) {
+              const flipTarget = clickedItem.querySelector('.flip-target') as HTMLElement
+              if (flipTarget) gsap.set(flipTarget, { clearProps: 'opacity', opacity: 1 })
+            }
+          },
+          onInterrupt: () => {
+            // Defensive: restore if interrupted
+            if (clickedItem) {
+              const flipTarget = clickedItem.querySelector('.flip-target') as HTMLElement
+              if (flipTarget) gsap.set(flipTarget, { clearProps: 'opacity', opacity: 1 })
+            }
+          },
         })
           .progress(1)
           .progress(0)
@@ -1001,7 +1021,7 @@ export default function HomePage() {
           movingEl.style.borderRadius = '6px'
           
           // 2. Capture this as the "from" state for Flip
-          const state = Flip.getState(movingEl, { props: 'borderRadius' })
+          const state = Flip.getState(movingEl, { props: 'borderRadius,boxShadow' })
 
           // 3. Set movingEl to the END position (the carousel item)
           movingEl.style.left = `${targetRect.left}px`
@@ -1058,6 +1078,9 @@ export default function HomePage() {
             // Hide the background box of the preview button while transitioning
             const btn = clickedItem.querySelector('.hscroll-preview') as HTMLElement
             if (btn) gsap.set(btn, { background: 'transparent', borderColor: 'transparent', boxShadow: 'none' })
+            // Hide the flip-target wrapper to prevent its shadow from showing during animation
+            const flipTarget = clickedItem.querySelector('.flip-target') as HTMLElement
+            if (flipTarget) gsap.set(flipTarget, { opacity: 0 })
           }
           if (targetImg) {
             gsap.set(targetImg, { opacity: 0 })
@@ -1081,7 +1104,7 @@ export default function HomePage() {
             ease: 'power3.inOut',
             scale: false,
             absolute: true,
-            props: 'borderRadius',
+            props: 'borderRadius,boxShadow',
             onComplete: () => {
               if (movingEl.parentElement) movingEl.parentElement.removeChild(movingEl)
               
@@ -1091,6 +1114,8 @@ export default function HomePage() {
               if (clickedItem) {
                 const btn = clickedItem.querySelector('.hscroll-preview') as HTMLElement
                 if (btn) gsap.set(btn, { clearProps: 'background,borderColor,boxShadow' })
+                const flipTarget = clickedItem.querySelector('.flip-target') as HTMLElement
+                if (flipTarget) gsap.set(flipTarget, { clearProps: 'opacity', opacity: 1 })
               }
               isTransitioningRef.current = false
 

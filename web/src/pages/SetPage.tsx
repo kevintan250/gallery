@@ -22,6 +22,7 @@ export default function SetPage() {
         ease: 'power2.inOut',
         absolute: true,
         scale: true,
+        props: 'boxShadow',
       })
     })
   }, [consumePendingFlip])
@@ -44,7 +45,7 @@ export default function SetPage() {
   const onBack = () => {
     const node = document.querySelector(`[data-flip-id="${flipId}"]`) as HTMLElement | null
     if (node) {
-      const state = Flip.getState(node)
+      const state = Flip.getState(node, { props: 'boxShadow' })
       setPendingFlip({ state, flipId })
     } else {
       setPendingFlip(null)
