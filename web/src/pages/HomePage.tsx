@@ -741,7 +741,7 @@ export default function HomePage() {
         }
 
         // Grab the starting state, then reparent into the final container and FLIP.
-        const state = Flip.getState(movingEl, 'borderRadius')
+        const state = Flip.getState(movingEl, { props: 'borderRadius' })
         slot.appendChild(movingEl)
         movingEl.style.cssText = ''
 
@@ -751,6 +751,7 @@ export default function HomePage() {
           duration: 0.9,
           ease: 'power3.inOut',
           paused: true,
+          props: 'borderRadius',
         })
           .progress(1)
           .progress(0)
@@ -997,15 +998,17 @@ export default function HomePage() {
           movingEl.style.width = `${startRect.width}px`
           movingEl.style.height = `${startRect.height}px`
           movingEl.style.transform = ''
+          movingEl.style.borderRadius = '6px'
           
           // 2. Capture this as the "from" state for Flip
-          const state = Flip.getState(movingEl, 'borderRadius')
+          const state = Flip.getState(movingEl, { props: 'borderRadius' })
 
           // 3. Set movingEl to the END position (the carousel item)
           movingEl.style.left = `${targetRect.left}px`
           movingEl.style.top = `${targetRect.top}px`
           movingEl.style.width = `${targetRect.width}px`
           movingEl.style.height = `${targetRect.height}px`
+          movingEl.style.borderRadius = '18px'
 
           const rootRect = root.getBoundingClientRect()
           const offscreen = (rootRect.width ?? window.innerWidth) + 80
@@ -1078,6 +1081,7 @@ export default function HomePage() {
             ease: 'power3.inOut',
             scale: false,
             absolute: true,
+            props: 'borderRadius',
             onComplete: () => {
               if (movingEl.parentElement) movingEl.parentElement.removeChild(movingEl)
               
@@ -1212,21 +1216,16 @@ export default function HomePage() {
         activeSet ? (
           <section className="set-page" ref={setViewRef}>
             <div className="set-header">
-              <button className="back-btn-vertical" type="button" onClick={closeSet}>
-                ❰
-              </button>
-
-              <div className="set-hero">
-                <div className="set-hero-slot" ref={setHeroSlotRef} />
-              </div>
-
-              <div className="set-info">
-                <h2 className="set-title" data-set-anim="header">
+              <div className="dynamic-island">
+                <button className="island-close-btn" type="button" onClick={closeSet} aria-label="Close">
+                  ✕
+                </button>
+                <div className="island-preview-wrapper">
+                  <div className="set-hero-slot" ref={setHeroSlotRef} />
+                </div>
+                <h2 className="island-title" data-set-anim="header">
                   {activeSet.name}
                 </h2>
-                <div className="set-subtitle" data-set-anim="header">
-                  {activeSet.location}
-                </div>
               </div>
             </div>
 

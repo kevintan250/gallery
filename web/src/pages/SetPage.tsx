@@ -55,26 +55,23 @@ export default function SetPage() {
   return (
     <section className="set-page">
       <div className="set-header">
-        <div>
-          <h2 className="set-title">{set.name}</h2>
-          <div className="set-subtitle">{set.location}</div>
+        <div className="dynamic-island">
+          <button className="island-close-btn" type="button" onClick={onBack} aria-label="Close">
+            ✕
+          </button>
+          <div className="island-preview" data-flip-id={flipId}>
+            <img src={set.photos[0]?.src} alt="" />
+          </div>
+          <h2 className="island-title">{set.name}</h2>
         </div>
-        <button className="ghost" type="button" onClick={onBack}>
-          Back to sets
-        </button>
       </div>
 
       <div className="set-grid" role="list">
-        {set.photos.map((photo, index) => {
-          const isPreview = index === 0
-          return (
-            <div key={photo.id} className="set-grid-item" role="listitem">
-              <div className={isPreview ? 'flip-target' : ''} data-flip-id={isPreview ? flipId : undefined}>
-                <img src={photo.src} alt={photo.alt} loading="lazy" />
-              </div>
-            </div>
-          )
-        })}
+        {set.photos.slice(1).map((photo) => (
+          <div key={photo.id} className="set-grid-item" role="listitem">
+            <img src={photo.src} alt={photo.alt} loading="lazy" />
+          </div>
+        ))}
       </div>
     </section>
   )
