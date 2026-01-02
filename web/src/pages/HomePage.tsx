@@ -633,7 +633,6 @@ export default function HomePage() {
   const openSetInPlace = (setId: string, clickedButton: HTMLButtonElement) => {
     if (isTransitioningRef.current) return
     isTransitioningRef.current = true
-    disablePreviewParallax()
 
     gsap.registerPlugin(Flip)
     const set = getPhotoSet(setId)
@@ -646,13 +645,24 @@ export default function HomePage() {
     const clickedTarget = clickedButton.querySelector('.flip-target') as HTMLElement | null
     const clickedImg = clickedTarget?.querySelector('img') as HTMLImageElement | null
     
-    // Reset parallax transforms on the clicked element before starting FLIP
-    if (clickedTarget) {
-      gsap.set(clickedTarget, { rotationX: 0, rotationY: 0, z: 0, scale: 1 })
+    // Settle all preview parallax animations (including the clicked one) using quickTo
+    const track = trackRef.current
+    if (track) {
+      const previews = Array.from(track.querySelectorAll<HTMLElement>('.hscroll-preview'))
+      for (const preview of previews) {
+        const fns = previewParallaxRef.current.get(preview)
+        if (fns) {
+          fns.outerRX(0)
+          fns.outerRY(0)
+          fns.zTo(0)
+          fns.innerScale?.(basePreviewImgScale)
+        }
+      }
     }
-    if (clickedImg) {
-      gsap.set(clickedImg, { scale: basePreviewImgScale })
-    }
+
+    // Wait for the settle animation to mostly complete before disabling parallax and starting timeline
+    gsap.delayedCall(0.05, () => {
+      disablePreviewParallax()
     
     const clickedRect = clickedButton.getBoundingClientRect()
 
@@ -689,7 +699,6 @@ export default function HomePage() {
     movingEl.style.height = `${clickedRect.height}px`
 
     const root = rootRef.current
-    const track = trackRef.current
     const clickedItem = clickedButton.closest('.hscroll-item') as HTMLElement | null
     
     // Hide the flip-target (which has the shadow) so only the moving element's shadow is visible
@@ -864,22 +873,7 @@ export default function HomePage() {
     if (clickedItem) gsap.set(clickedItem, { zIndex: 2 })
 
     // Give the hover/parallax a moment to settle back to flat before we start moving anything.
-    const settleDuration = 0.22
-    if (clickedTarget) {
-      tl.to(
-        clickedTarget,
-        {
-          rotationX: 0,
-          rotationY: 0,
-          z: 0,
-          scale: 1,
-          duration: settleDuration,
-          ease: 'power3.out',
-          overwrite: 'auto',
-        },
-        0,
-      )
-    }
+    const settleDuration = 0
     if (clickedImg) {
       tl.to(
         clickedImg,
@@ -887,7 +881,7 @@ export default function HomePage() {
           // Keep the base zoom so the image doesn't "shrink" right before the FLIP.
           scale: basePreviewImgScale,
           duration: settleDuration,
-          ease: 'power3.out',
+          ease: 'power2.out',
           overwrite: 'auto',
         },
         0,
@@ -920,7 +914,7 @@ export default function HomePage() {
           duration: 0.4,
           ease: 'power2.in',
         },
-        settleDuration + 0.15,
+        0,
       )
     }
 
@@ -936,7 +930,7 @@ export default function HomePage() {
           },
           opacity: 0,
         },
-        settleDuration,
+        0,
       )
     }
 
@@ -952,12 +946,13 @@ export default function HomePage() {
           },
           opacity: 0,
         },
-        settleDuration,
+        0,
       )
     }
 
-    // If we couldn't find neighbors (or refs), still hold until lock-in completes.
-    tl.to({}, { duration: Math.max(0, duration - 0.22) }, settleDuration + 0.22)
+    // Hold for the neighbor animations to complete.
+    tl.to({}, { duration }, 0)
+    })
   }
 
   const closeSet = () => {
