@@ -247,14 +247,22 @@
 .dynamic-island {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 4px;
   padding: 6px 20px 6px 6px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(11, 15, 28, 0.1);
-  box-shadow: 0 12px 32px rgba(11, 15, 28, 0.14);
+  box-shadow: 0 4px 12px rgba(11, 15, 28, 0.06);
   backdrop-filter: blur(12px);
   pointer-events: auto;
+  transition: box-shadow 160ms ease;
+  transform-style: preserve-3d;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.dynamic-island:hover {
+  box-shadow: 0 12px 28px rgba(11, 15, 28, 0.11);
 }
 
 .island-close-btn {
@@ -267,18 +275,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(11, 15, 28, 0.06) !important;
-  border: 1px solid rgba(11, 15, 28, 0.12);
-  color: rgba(11, 15, 28, 0.75);
-  font-size: 12px;
+  background: #fff !important;
+  border: none;
+  color: rgba(11, 15, 28, 0.45);
+  font-size: 14px;
   cursor: pointer;
-  transition: background 200ms ease, transform 120ms ease, border-color 200ms ease;
+  transition: color 200ms ease, transform 120ms ease;
   box-shadow: none;
 }
 
 .island-close-btn:hover {
-  background: rgba(11, 15, 28, 0.1) !important;
-  border-color: rgba(11, 15, 28, 0.2);
+  color: rgba(11, 15, 28, 0.85);
   transform: scale(1.05) !important;
 }
 
@@ -328,6 +335,7 @@
 
 .island-title {
   margin: 0;
+  margin-left: 8px;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;

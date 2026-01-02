@@ -1236,9 +1236,53 @@ export default function HomePage() {
         activeSet ? (
           <section className="set-page" ref={setViewRef}>
             <div className="set-header">
-              <div className="dynamic-island">
+              <div 
+                className="dynamic-island"
+                onPointerEnter={(e) => {
+                  if (e.pointerType === 'touch') return
+                  const target = e.currentTarget
+                  gsap.to(target, {
+                    z: 35,
+                    duration: 0.25,
+                    ease: 'power3.out',
+                  })
+                }}
+                onPointerMove={(e) => {
+                  if (e.pointerType === 'touch') return
+                  const target = e.currentTarget
+                  const r = target.getBoundingClientRect()
+                  if (r.width <= 0 || r.height <= 0) return
+
+                  const px = (e.clientX - r.left) / r.width
+                  const py = (e.clientY - r.top) / r.height
+                  const clampedX = Math.max(0, Math.min(1, px))
+                  const clampedY = Math.max(0, Math.min(1, py))
+
+                  const maxTilt = 8
+                  const rotX = gsap.utils.interpolate(-maxTilt, maxTilt, clampedY)
+                  const rotY = gsap.utils.interpolate(maxTilt, -maxTilt, clampedX)
+
+                  gsap.to(target, {
+                    rotationX: rotX,
+                    rotationY: rotY,
+                    duration: 0.25,
+                    ease: 'power3.out',
+                  })
+                }}
+                onPointerLeave={(e) => {
+                  if (e.pointerType === 'touch') return
+                  const target = e.currentTarget
+                  gsap.to(target, {
+                    rotationX: 0,
+                    rotationY: 0,
+                    z: 0,
+                    duration: 0.25,
+                    ease: 'power3.out',
+                  })
+                }}
+              >
                 <button className="island-close-btn" type="button" onClick={closeSet} aria-label="Close">
-                  ✕
+                  ←
                 </button>
                 <div className="island-preview-wrapper">
                   <div className="set-hero-slot" ref={setHeroSlotRef} />
