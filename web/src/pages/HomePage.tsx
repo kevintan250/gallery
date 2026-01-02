@@ -59,10 +59,12 @@ export default function HomePage() {
   const gridTransforms = useMemo(() => {
     if (!activeSet) return []
     return activeSet.photos.slice(1).map((photo) => ({
-      rotation: photo.rotation ?? gsap.utils.random(-3, 3),
-      scale: photo.scale ?? gsap.utils.random(0.75, 0.85),
-      x: photo.x ?? gsap.utils.random(-30, 30),
-      y: photo.y ?? gsap.utils.random(-30, 30),
+      rotation: photo.rotation ?? 0,
+      scale: photo.scale ?? 1,
+      x: photo.x ?? 0,
+      y: photo.y ?? 0,
+      width: photo.width,
+      height: photo.height,
     }))
   }, [activeSet])
 
@@ -1333,8 +1335,12 @@ export default function HomePage() {
                     role="listitem"
                     data-set-anim="grid"
                     style={{
-                      transform: t
-                        ? `translate(${t.x}px, ${t.y}px) rotate(${t.rotation}deg) scale(${t.scale})`
+                      left: t?.x ?? 0,
+                      top: t?.y ?? 0,
+                      width: t?.width ?? 300,
+                      height: t?.height ?? 240,
+                      transform: t?.rotation || t?.scale !== 1
+                        ? `rotate(${t.rotation}deg) scale(${t.scale})`
                         : undefined,
                     }}
                   >
