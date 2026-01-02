@@ -39,6 +39,7 @@ export default function DynamicIsland() {
         filter: 'blur(0px)',
         duration: 0.48,
         ease: 'power3.out',
+        delay: 0.08,
         overwrite: 'auto',
       },
     )
@@ -53,53 +54,48 @@ export default function DynamicIsland() {
     requestClose()
   }, [requestClose])
 
-  // When exiting: wait for the set grid to transition out (HomePage emits that via closePhase),
-  // then start the Dynamic Island exit. The hero FLIP begins first; then we fade the button/title.
+  // Combined Set Content Animation Effect (Entrance & Exit)
   useLayoutEffect(() => {
-    if (!closeRequestedRef.current) return
-    if (closePhase !== 'hero-exit') return
-
     const setContent = setContentRef.current
-    if (!setContent) return
+    
+    // 1. EXIT ANIMATION
+    if (closeRequestedRef.current && closePhase === 'hero-exit' && setContent) {
+      const closeBtn = setContent.querySelector<HTMLElement>('.island-close-btn')
+      const preview = setContent.querySelector<HTMLElement>('.island-preview-wrapper')
+      const title = setContent.querySelector<HTMLElement>('.island-title')
 
-    const closeBtn = setContent.querySelector<HTMLElement>('.island-close-btn')
-    const preview = setContent.querySelector<HTMLElement>('.island-preview-wrapper')
-    const title = setContent.querySelector<HTMLElement>('.island-title')
+      const heroFirstTargets = [preview].filter(Boolean) as HTMLElement[]
+      const textTargets = [closeBtn, title].filter(Boolean) as HTMLElement[]
 
-    // Hero starts moving via the FLIP proxy; avoid showing an empty preview frame.
-    const heroFirstTargets = [preview].filter(Boolean) as HTMLElement[]
-    const textTargets = [closeBtn, title].filter(Boolean) as HTMLElement[]
+      const textExitAt = 0.5
+      const textExitTotal = 0.48 + 0.04
+      const homeEnterAt = textExitAt + textExitTotal
 
-    const textExitAt = 0.5
-    const textExitTotal = 0.22 + 0.03
-    const homeEnterAt = textExitAt + textExitTotal
+      gsap.killTweensOf([...heroFirstTargets, ...textTargets])
 
-    gsap.killTweensOf([...heroFirstTargets, ...textTargets])
+      const tl = gsap.timeline()
 
-    gsap
-      .timeline()
-      .to(heroFirstTargets, {
+      tl.to(heroFirstTargets, {
         opacity: 0,
         duration: 0.18,
         ease: 'power2.out',
         overwrite: 'auto',
-      })
-      .to(
+      }).to(
         textTargets,
         {
           opacity: 0,
-          y: -8,
-          filter: 'blur(8px)',
-          duration: 0.22,
-          ease: 'power2.in',
-          stagger: 0.03,
+          y: 10,
+          filter: 'blur(10px)',
+          duration: 0.48,
+          ease: 'power3.in',
+          stagger: { each: 0.04, from: 'end' },
           overwrite: 'auto',
         },
         textExitAt,
       )
+
       // Once the set UI is animated out, switch the island back to home content
-      // and let the home title animate in.
-      .call(
+      tl.call(
         () => {
           homeEnterRequestedRef.current = true
           setIslandSetId(null)
@@ -107,13 +103,44 @@ export default function DynamicIsland() {
         [],
         homeEnterAt,
       )
-  }, [closePhase, setIslandSetId])
+      return
+    }
+
+    // 2. ENTRANCE ANIMATION
+    const isOpening = !prevIdRef.current && islandSetId
+    if (isOpening && setContent) {
+      const closeBtn = setContent.querySelector<HTMLElement>('.island-close-btn')
+      const preview = setContent.querySelector<HTMLElement>('.island-preview-wrapper')
+      const title = setContent.querySelector<HTMLElement>('.island-title')
+      
+      const targets = (isTransitioning ? [closeBtn, title] : [closeBtn, preview, title]).filter(Boolean) as HTMLElement[]
+
+      if (isTransitioning && preview) {
+        gsap.killTweensOf(preview)
+        gsap.set(preview, { opacity: 1, y: 0, filter: 'blur(0px)', overwrite: 'auto' })
+      }
+
+      gsap.killTweensOf(targets)
+      gsap.fromTo(
+        targets,
+        { opacity: 0, y: 10, filter: 'blur(10px)' },
+        {
+          opacity: 1,
+          y: 0,
+          filter: 'blur(0px)',
+          duration: 0.48,
+          ease: 'power3.out',
+          stagger: 0.04,
+          delay: 0.08,
+          overwrite: 'auto',
+        },
+      )
+    }
+  }, [closePhase, islandSetId, isTransitioning, setIslandSetId])
 
   useLayoutEffect(() => {
     const container = containerRef.current
     if (!container) return
-
-    const isOpening = !prevIdRef.current && islandSetId
 
     // Smoothly animate the container size instead of snapping.
     const nextRect = container.getBoundingClientRect()
@@ -140,44 +167,8 @@ export default function DynamicIsland() {
       }
     }
 
-    // Better text entrance animations.
-    if (isOpening) {
-      const setContent = setContentRef.current
-      if (setContent) {
-        const closeBtn = setContent.querySelector<HTMLElement>('.island-close-btn')
-        const preview = setContent.querySelector<HTMLElement>('.island-preview-wrapper')
-        const title = setContent.querySelector<HTMLElement>('.island-title')
-        // During the click-into FLIP, the hero image is animated via a proxy element.
-        // Fading the preview wrapper here can make the hero briefly disappear (blink).
-        const targets = (isTransitioning ? [closeBtn, title] : [closeBtn, preview, title]).filter(
-          Boolean,
-        ) as HTMLElement[]
-
-        if (isTransitioning && preview) {
-          gsap.killTweensOf(preview)
-          gsap.set(preview, { opacity: 1, y: 0, filter: 'blur(0px)', overwrite: 'auto' })
-        }
-
-        gsap.killTweensOf(targets)
-        gsap.fromTo(
-          targets,
-          { opacity: 0, y: 10, filter: 'blur(10px)' },
-          {
-            opacity: 1,
-            y: 0,
-            filter: 'blur(0px)',
-            duration: 0.48,
-            ease: 'power3.out',
-            stagger: 0.04,
-            delay: 0.08,
-            overwrite: 'auto',
-          },
-        )
-      }
-    }
-
     prevIdRef.current = islandSetId
-  }, [islandSetId, isTransitioning])
+  }, [islandSetId])
 
   return (
     <div 
