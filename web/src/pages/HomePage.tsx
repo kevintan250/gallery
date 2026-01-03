@@ -739,6 +739,60 @@ export default function HomePage() {
       container.addEventListener('touchstart', handleTouchStart, { passive: false })
       container.addEventListener('touchmove', handleTouchMove, { passive: false })
 
+      // 3D parallax effect - apply to the entire canvas plane
+      // Set up 3D perspective on container, canvas will tilt as a unified plane
+      gsap.set(container, { perspective: 1200, perspectiveOrigin: 'center center' })
+      gsap.set(canvas, { transformStyle: 'preserve-3d', force3D: true })
+      
+      const handleMouseMove = (e: MouseEvent) => {
+        // Get viewport center (the fulcrum/neutral point)
+        const centerX = window.innerWidth / 2
+        const centerY = window.innerHeight / 2
+        
+        // Calculate mouse offset from center
+        const deltaX = e.clientX - centerX
+        const deltaY = e.clientY - centerY
+        
+        // Calculate distance from center for z-depth
+        const maxDistance = Math.sqrt(centerX * centerX + centerY * centerY)
+        const distanceFromCenter = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+        const normalizedDistance = distanceFromCenter / maxDistance
+        
+        // Tilt the entire canvas plane toward the cursor
+        const maxTilt = 5 // Maximum tilt in degrees
+        const rotationY = -(deltaX / centerX) * maxTilt
+        const rotationX = (deltaY / centerY) * maxTilt
+        
+        // Z-axis: canvas lifts up when cursor is away from center (creating depth)
+        // Inverted so closer to cursor = lift up, farther = sink down
+        const maxZ = 30
+        const z = -normalizedDistance * maxZ
+        
+        gsap.to(canvas, {
+          rotationX: rotationX,
+          rotationY: rotationY,
+          z: z,
+          duration: 0.5,
+          ease: 'power2.out',
+          overwrite: 'auto'
+        })
+      }
+      
+      // Reset parallax when mouse leaves
+      const handleMouseLeave = () => {
+        gsap.to(canvas, {
+          rotationX: 0,
+          rotationY: 0,
+          z: 0,
+          duration: 0.6,
+          ease: 'power2.out',
+          overwrite: 'auto'
+        })
+      }
+      
+      container.addEventListener('mousemove', handleMouseMove)
+      container.addEventListener('mouseleave', handleMouseLeave)
+
       // Canvas-level dragging for panning all photos together
       const draggable = Draggable.create(canvas, {
         type: 'x,y',
@@ -755,6 +809,9 @@ export default function HomePage() {
 
       return () => {
         container.removeEventListener('wheel', handleWheel)
+        container.removeEventListener('mousemove', handleMouseMove)
+        container.removeEventListener('touchstart', handleTouchStart)
+        container.removeEventListener('touchmove', handleTouchMove)
         if (draggable && draggable[0]) {
           draggable[0].kill()
         }
