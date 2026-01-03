@@ -650,11 +650,30 @@ export default function HomePage() {
       // Track zoom level in a local variable that the wheel handler can access
       let currentZoom = 1
 
-      // Wheel event for smooth scrolling zoom
+      // Wheel event for zoom (both vertical and horizontal scroll)
       const handleWheel = (e: WheelEvent) => {
         e.preventDefault()
         
-        const delta = -e.deltaY * 0.001
+        // Trackpad pinch gestures come through as wheel events with ctrlKey
+        // They need much higher sensitivity
+        let scrollDelta: number
+        let sensitivity: number
+        
+        if (e.ctrlKey) {
+          // Trackpad pinch gesture - much more sensitive
+          scrollDelta = e.deltaY
+          sensitivity = 0.01  // 10x more sensitive than regular scroll
+        } else if (e.deltaY !== 0) {
+          // Vertical scroll
+          scrollDelta = e.deltaY
+          sensitivity = 0.001
+        } else {
+          // Horizontal scroll - 2x boost
+          scrollDelta = e.deltaX * 2
+          sensitivity = 0.001
+        }
+        
+        const delta = -scrollDelta * sensitivity
         const newZoom = Math.min(Math.max(0.3, currentZoom + delta), 3)
         
         if (newZoom !== currentZoom) {
@@ -662,7 +681,7 @@ export default function HomePage() {
           setZoomLevel(newZoom)
           gsap.to(canvas, {
             scale: newZoom,
-            duration: 0.3,
+            duration: e.ctrlKey ? 0.1 : 0.3,  // Faster response for pinch
             ease: 'power2.out',
             overwrite: 'auto'
           })
@@ -670,6 +689,55 @@ export default function HomePage() {
       }
 
       container.addEventListener('wheel', handleWheel, { passive: false })
+
+      // Touch gestures for pinch-to-zoom
+      let initialPinchDistance = 0
+      let initialZoom = 1
+      let lastPinchScale = 1
+
+      const getTouchDistance = (touch1: Touch, touch2: Touch) => {
+        const dx = touch2.clientX - touch1.clientX
+        const dy = touch2.clientY - touch1.clientY
+        return Math.sqrt(dx * dx + dy * dy)
+      }
+
+      const handleTouchStart = (e: TouchEvent) => {
+        if (e.touches.length === 2) {
+          // Start pinch gesture
+          initialPinchDistance = getTouchDistance(e.touches[0], e.touches[1])
+          initialZoom = currentZoom
+          lastPinchScale = 1
+        }
+      }
+
+      const handleTouchMove = (e: TouchEvent) => {
+        if (e.touches.length === 2) {
+          e.preventDefault()
+          
+          const currentDistance = getTouchDistance(e.touches[0], e.touches[1])
+          const scale = currentDistance / initialPinchDistance
+          
+          // Apply exponential scaling for more responsive feel
+          const scaleDiff = scale - lastPinchScale
+          const zoomDelta = scaleDiff * currentZoom * 2
+          const newZoom = Math.min(Math.max(0.3, currentZoom + zoomDelta), 3)
+          
+          if (Math.abs(newZoom - currentZoom) > 0.01) {
+            currentZoom = newZoom
+            lastPinchScale = scale
+            setZoomLevel(newZoom)
+            gsap.to(canvas, {
+              scale: newZoom,
+              duration: 0.1,
+              ease: 'power2.out',
+              overwrite: 'auto'
+            })
+          }
+        }
+      }
+
+      container.addEventListener('touchstart', handleTouchStart, { passive: false })
+      container.addEventListener('touchmove', handleTouchMove, { passive: false })
 
       // Canvas-level dragging for panning all photos together
       const draggable = Draggable.create(canvas, {
