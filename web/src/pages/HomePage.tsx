@@ -31,6 +31,8 @@ export default function HomePage() {
   const canvasContainerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const [zoomLevel, setZoomLevel] = useState(1)
+  const zoomToRef = useRef<((value: number) => void) | null>(null)
+  const canvasDraggableRef = useRef<Draggable[] | null>(null)
   const isTransitioningRef = useRef(false)
   const parallaxEnabledRef = useRef(true)
   const parallaxKickRef = useRef<(() => void) | null>(null)
@@ -581,9 +583,13 @@ export default function HomePage() {
 
         Draggable.create(item, {
           type: 'x,y',
-          bounds: window,
           inertia: true,
+          zIndexBoost: true,
           onPress: function () {
+            // Disable canvas dragging when dragging individual photos
+            if (canvasDraggableRef.current && canvasDraggableRef.current[0]) {
+              canvasDraggableRef.current[0].disable()
+            }
             highestZ++
             gsap.to(this.target, {
               scale: 1,
@@ -594,6 +600,10 @@ export default function HomePage() {
             })
           },
           onRelease: function () {
+            // Re-enable canvas dragging after releasing photo
+            if (canvasDraggableRef.current && canvasDraggableRef.current[0]) {
+              canvasDraggableRef.current[0].enable()
+            }
             gsap.to(this.target, {
               scale: originalScale,
               duration: 0.2,
@@ -608,62 +618,82 @@ export default function HomePage() {
     return () => ctx.revert()
   }, [activeSetId, gridTransforms])
 
-  // Zoom and pan functionality
-  useEffect(() => {
+  // GSAP-based zoom and pan functionality
+  useLayoutEffect(() => {
     if (!activeSetId) return
-    const container = canvasContainerRef.current
+
+    gsap.registerPlugin(Draggable)
     const canvas = canvasRef.current
-    if (!container || !canvas) return
-
-    const handleWheel = (e: WheelEvent) => {
-      if (e.ctrlKey || e.metaKey) {
-        e.preventDefault()
-        
-        const rect = container.getBoundingClientRect()
-        const mouseX = e.clientX - rect.left
-        const mouseY = e.clientY - rect.top
-        
-        const scrollLeft = container.scrollLeft
-        const scrollTop = container.scrollTop
-        
-        const delta = -e.deltaY * 0.001
-        const newZoom = Math.min(Math.max(0.1, zoomLevel + delta), 5)
-        
-        const ratio = newZoom / zoomLevel
-        
-        setZoomLevel(newZoom)
-        
-        requestAnimationFrame(() => {
-          container.scrollLeft = scrollLeft * ratio + mouseX * (ratio - 1)
-          container.scrollTop = scrollTop * ratio + mouseY * (ratio - 1)
-        })
-      }
-    }
-
-    container.addEventListener('wheel', handleWheel, { passive: false })
-    return () => container.removeEventListener('wheel', handleWheel)
-  }, [activeSetId, zoomLevel])
-
-  // Center canvas on initial load
-  useEffect(() => {
-    if (!activeSetId) return
     const container = canvasContainerRef.current
-    const canvas = canvasRef.current
-    if (!container || !canvas) return
+    if (!canvas || !container) return
 
-    // Use setTimeout to ensure layout is complete
-    const timer = setTimeout(() => {
-      const centerX = 1500  // Center point of canvas
-      const centerY = 1500  // Center point of canvas
+    // Reset zoom level state
+    setZoomLevel(1)
+
+    const ctx = gsap.context(() => {
+      // Initialize canvas position and transform
       const containerWidth = container.clientWidth
       const containerHeight = container.clientHeight
       
-      // Position so that (1500, 1500) appears in center of viewport
-      container.scrollLeft = centerX - (containerWidth / 2)
-      container.scrollTop = centerY - (containerHeight / 2)
-    }, 0)
-    
-    return () => clearTimeout(timer)
+      // Photos are positioned around (1500, 1500) in the canvas
+      // Position the canvas so (1500, 1500) appears at the viewport center
+      const offsetX = (containerWidth / 2) - 1500
+      const offsetY = (containerHeight / 2) - 1500
+      
+      gsap.set(canvas, { 
+        x: offsetX, 
+        y: offsetY, 
+        scale: 1,
+        transformOrigin: 'center center'
+      })
+
+      // Track zoom level in a local variable that the wheel handler can access
+      let currentZoom = 1
+
+      // Wheel event for smooth scrolling zoom
+      const handleWheel = (e: WheelEvent) => {
+        e.preventDefault()
+        
+        const delta = -e.deltaY * 0.001
+        const newZoom = Math.min(Math.max(0.3, currentZoom + delta), 3)
+        
+        if (newZoom !== currentZoom) {
+          currentZoom = newZoom
+          setZoomLevel(newZoom)
+          gsap.to(canvas, {
+            scale: newZoom,
+            duration: 0.3,
+            ease: 'power2.out',
+            overwrite: 'auto'
+          })
+        }
+      }
+
+      container.addEventListener('wheel', handleWheel, { passive: false })
+
+      // Canvas-level dragging for panning all photos together
+      const draggable = Draggable.create(canvas, {
+        type: 'x,y',
+        inertia: true,
+        cursor: 'grab',
+        activeCursor: 'grabbing',
+        allowEventDefault: false,
+        onClick: function() {
+          // Allow clicks to pass through
+        },
+      })
+
+      canvasDraggableRef.current = draggable
+
+      return () => {
+        container.removeEventListener('wheel', handleWheel)
+        if (draggable && draggable[0]) {
+          draggable[0].kill()
+        }
+      }
+    }, container)
+
+    return () => ctx.revert()
   }, [activeSetId])
 
   useLayoutEffect(() => {
@@ -1390,10 +1420,6 @@ export default function HomePage() {
               <div 
                 className="set-canvas" 
                 ref={canvasRef}
-                style={{
-                  transform: `scale(${zoomLevel})`,
-                  transformOrigin: '0 0',
-                }}
               >
                 <div className="set-grid" role="list">
                   {activeSet.photos.slice(1).map((photo, index) => {
