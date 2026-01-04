@@ -4,51 +4,14 @@
   color: #0b0f1c;
   background: linear-gradient(145deg, #f7f9ff, #eef3ff 60%, #f6f8fb);
   background-attachment: fixed;
-  padding: 0 var(--page-padding) 48px;
+  padding: 0;
   display: flex;
   flex-direction: column;
 }
 
-.side-bar {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  width: var(--page-padding);
-  background: linear-gradient(145deg, #f7f9ff, #eef3ff 60%, #f6f8fb);
-  background-attachment: fixed;
-  z-index: 60;
-  pointer-events: none;
-}
 
-.side-bar.left {
-  left: 0;
-}
 
-.side-bar.right {
-  right: 0;
-}
 
-.topbar {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  height: 64px;
-  padding: 0;
-  gap: 12px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.brand {
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.menu {
-  display: flex;
-  gap: 10px;
-}
 
 
 
@@ -69,12 +32,12 @@
   position: relative;
   overflow: hidden;
   flex: 1;
-  min-height: calc(100vh - 64px);
+  min-height: 100vh;
 }
 
 .hscroll-pin {
   position: relative;
-  height: calc(100vh - 64px);
+  height: 100vh;
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -132,7 +95,7 @@
   position: fixed;
   left: 0;
   top: 0;
-  z-index: 40;
+  z-index: 200;
   pointer-events: none;
   opacity: 0;
   transform: translate3d(0, 0, 0);
@@ -422,7 +385,7 @@
 .set-canvas-container {
   position: relative;
   width: 100%;
-  height: calc(100vh - 80px);
+  height: 100vh;
   overflow: hidden;
   background: linear-gradient(145deg, #f7f9ff, #eef3ff 60%, #f6f8fb);
 }

@@ -30,8 +30,7 @@ export default function HomePage() {
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const canvasContainerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLDivElement | null>(null)
-  const [zoomLevel, setZoomLevel] = useState(1)
-  const zoomToRef = useRef<((value: number) => void) | null>(null)
+  const [, setZoomLevel] = useState(1)
   const canvasDraggableRef = useRef<Draggable[] | null>(null)
   const isTransitioningRef = useRef(false)
   const parallaxEnabledRef = useRef(true)
@@ -692,7 +691,6 @@ export default function HomePage() {
 
       // Touch gestures for pinch-to-zoom
       let initialPinchDistance = 0
-      let initialZoom = 1
       let lastPinchScale = 1
 
       const getTouchDistance = (touch1: Touch, touch2: Touch) => {
@@ -705,7 +703,7 @@ export default function HomePage() {
         if (e.touches.length === 2) {
           // Start pinch gesture
           initialPinchDistance = getTouchDistance(e.touches[0], e.touches[1])
-          initialZoom = currentZoom
+          // initialZoom = currentZoom
           lastPinchScale = 1
         }
       }
@@ -1537,7 +1535,7 @@ export default function HomePage() {
       {activeSetId ? (
         activeSet ? (
           <section className="set-page" ref={setViewRef}>
-            <div className="set-header" style={{ minHeight: '80px' }}>
+            <div className="set-header" style={{ minHeight: '100px' }}>
               {/* Header content moved to DynamicIsland */}
             </div>
 

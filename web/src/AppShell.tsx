@@ -8,11 +8,11 @@ export default function AppShell() {
   return (
     <GalleryProvider>
       <div className="page">
-        <div className="side-bar left" />
-        <div className="side-bar right" />
-        <header className="topbar" style={{ justifyContent: 'center' }}>
-          <DynamicIsland />
-        </header>
+        <div style={{ position: 'fixed', top: '24px', left: '0', right: '0', display: 'flex', justifyContent: 'center', zIndex: 100, pointerEvents: 'none' }}>
+          <div style={{ pointerEvents: 'auto' }}>
+            <DynamicIsland />
+          </div>
+        </div>
 
         <Routes>
           <Route path="/" element={<HomePage />} />

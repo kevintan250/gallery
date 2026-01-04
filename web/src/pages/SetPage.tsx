@@ -76,7 +76,7 @@ export default function SetPage() {
 
   return (
     <section className="set-page">
-      <div className="set-header" style={{ minHeight: '80px' }} />
+      <div className="set-header" style={{ minHeight: '100px' }} />
 
       <div className="set-grid" role="list">
         {set.photos.slice(1).map((photo) => (
