@@ -27,32 +27,42 @@ export const photoSets: PhotoSet[] = [
     description:
       'Long-lens minimalism where the wind redraws the dunes each hour. Warm gradients, razor edges, and dust in the air.',
     accent: '#f2a65a',
-    photos: [
+      photos: [
       {
-        id: 'dunes-1',
-        src: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1600&q=80',
-        alt: 'Soft dunes at sunset',
+        "id": "dunes-1",
+        "src": "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1600&q=80",
+        "alt": "Soft dunes at sunset"
       },
       {
-        id: 'dunes-2',
-        src: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80',
-        alt: 'Rippling sand lines',
+        "id": "dunes-2",
+        "src": "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80",
+        "alt": "Rippling sand lines",
+        "x": 7568,
+        "y": 7421
       },
       {
-        id: 'dunes-3',
-        src: 'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1600&q=80',
-        alt: 'Dune crest shadows',
+        "id": "dunes-3",
+        "src": "https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1600&q=80",
+        "alt": "Dune crest shadows",
+        "x": 7312,
+        "y": 7368
       },
       {
-        id: 'dunes-4',
-        src: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80',
-        alt: 'Twilight haze over dunes',
+        "id": "dunes-4",
+        "src": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80",
+        "alt": "Twilight haze over dunes",
+        "x": 7722,
+        "y": 7819,
+        "width": 548,
+        "height": 438
       },
       {
-        id: 'dunes-5',
-        src: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80',
-        alt: 'Sculpted ridge line',
-      },
+        "id": "dunes-5",
+        "src": "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1600&q=80",
+        "alt": "Sculpted ridge line",
+        "x": 7176,
+        "y": 7598
+      }
     ],
   },
   {

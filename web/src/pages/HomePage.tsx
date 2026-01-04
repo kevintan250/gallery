@@ -4,6 +4,7 @@ import { gsap } from 'gsap'
 import { Draggable, Flip, Observer } from 'gsap/all'
 import { getPhotoSet, getSetPreviewPhoto, photoSets } from '../data/photoSets'
 import { useGallery } from '../context/useGallery'
+import EditablePhoto from '../components/EditablePhoto'
 
 export default function HomePage() {
   const {
@@ -12,6 +13,9 @@ export default function HomePage() {
     setIsTransitioning,
     setClosePhase,
     registerCloseHandler,
+    isEditMode,
+    updatePhotoData,
+    getEditedPhoto,
   } = useGallery()
   const sets = useMemo(() => photoSets, [])
   const [hoverLabelContent, setHoverLabelContent] = useState<{ title: string; subtitle: string }>(
@@ -582,6 +586,8 @@ export default function HomePage() {
 
   useLayoutEffect(() => {
     if (!activeSetId) return
+    // Don't apply GSAP Draggable when in edit mode
+    if (isEditMode) return
 
     gsap.registerPlugin(Draggable)
     const scope = setViewRef.current
@@ -631,7 +637,7 @@ export default function HomePage() {
     }, scope)
 
     return () => ctx.revert()
-  }, [activeSetId, gridTransforms])
+  }, [activeSetId, gridTransforms, isEditMode])
 
   // GSAP-based zoom and pan functionality
   useLayoutEffect(() => {
@@ -762,6 +768,9 @@ export default function HomePage() {
       gsap.set(canvas, { transformStyle: 'preserve-3d', force3D: true })
       
       const handleMouseMove = (e: MouseEvent) => {
+        // Skip parallax effect when in edit mode
+        if (isEditMode) return
+        
         // Get viewport center (the fulcrum/neutral point)
         const centerX = window.innerWidth / 2
         const centerY = window.innerHeight / 2
@@ -795,7 +804,7 @@ export default function HomePage() {
         })
       }
       
-      // Reset parallax when mouse leaves
+      // Reset parallax when mouse leaves or edit mode is enabled
       const handleMouseLeave = () => {
         gsap.to(canvas, {
           rotationX: 0,
@@ -810,17 +819,26 @@ export default function HomePage() {
       container.addEventListener('mousemove', handleMouseMove)
       container.addEventListener('mouseleave', handleMouseLeave)
 
+      // Reset parallax when edit mode changes
+      if (isEditMode) {
+        handleMouseLeave()
+      }
+
       // Canvas-level dragging for panning all photos together
-      const draggable = Draggable.create(canvas, {
-        type: 'x,y',
-        inertia: true,
-        cursor: 'grab',
-        activeCursor: 'grabbing',
-        allowEventDefault: false,
-        onClick: function() {
-          // Allow clicks to pass through
-        },
-      })
+      // Disable in edit mode to allow photo dragging
+      let draggable: Draggable[] | null = null
+      if (!isEditMode) {
+        draggable = Draggable.create(canvas, {
+          type: 'x,y',
+          inertia: true,
+          cursor: 'grab',
+          activeCursor: 'grabbing',
+          allowEventDefault: false,
+          onClick: function() {
+            // Allow clicks to pass through
+          },
+        })
+      }
 
       canvasDraggableRef.current = draggable
 
@@ -836,7 +854,7 @@ export default function HomePage() {
     }, container)
 
     return () => ctx.revert()
-  }, [activeSetId])
+  }, [activeSetId, isEditMode])
 
   useLayoutEffect(() => {
     const el = hoverLabelRef.current
@@ -1592,9 +1610,52 @@ export default function HomePage() {
               >
                 <div className="set-grid" role="list">
                   {activeSet.photos.slice(1).map((photo, index) => {
+                    const editedPhoto = getEditedPhoto(photo.id, photo)
                     const t = gridTransforms[index]
-                    const width = t?.width ?? 300
-                    const height = t?.height ?? 240
+                    const width = editedPhoto.width ?? t?.width ?? 300
+                    const height = editedPhoto.height ?? t?.height ?? 240
+                    const x = editedPhoto.x ?? t?.x ?? 1500
+                    const y = editedPhoto.y ?? t?.y ?? 1500
+                    
+                    // In edit mode, use EditablePhoto component
+                    if (isEditMode) {
+                      // Pass a photo with all positioning data filled in (top-left coordinates)
+                      const photoWithPosition = {
+                        ...editedPhoto,
+                        x: x - width / 2,  // Convert from center to top-left
+                        y: y - height / 2,
+                        width,
+                        height,
+                      }
+                      
+                      // Wrapper to convert back to center-based coordinates when updating
+                      const handleUpdate = (photoId: string, data: Partial<typeof photo>) => {
+                        const updatedData = { ...data }
+                        // If x or y changed, convert from top-left back to center
+                        if (data.x !== undefined || data.y !== undefined) {
+                          const newWidth = data.width ?? width
+                          const newHeight = data.height ?? height
+                          if (data.x !== undefined) {
+                            updatedData.x = data.x + newWidth / 2
+                          }
+                          if (data.y !== undefined) {
+                            updatedData.y = data.y + newHeight / 2
+                          }
+                        }
+                        updatePhotoData(photoId, updatedData)
+                      }
+                      
+                      return (
+                        <EditablePhoto
+                          key={photo.id}
+                          photo={photoWithPosition}
+                          isEditMode={isEditMode}
+                          onUpdate={handleUpdate}
+                        />
+                      )
+                    }
+                    
+                    // In normal mode, use regular div with GSAP draggable
                     return (
                       <div
                         key={photo.id}
@@ -1602,8 +1663,8 @@ export default function HomePage() {
                         role="listitem"
                         data-set-anim="grid"
                         style={{
-                          left: (t?.x ?? 1500) - width / 2,
-                          top: (t?.y ?? 1500) - height / 2,
+                          left: x - width / 2,
+                          top: y - height / 2,
                           width: width,
                           height: height,
                           transform: t?.rotation || t?.scale !== 1

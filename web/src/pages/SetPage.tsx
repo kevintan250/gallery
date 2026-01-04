@@ -5,13 +5,14 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { getPhotoSet } from '../data/photoSets'
 import { useFlipBridge } from '../flip/flipBridge'
 import { useGallery } from '../context/useGallery'
+import EditablePhoto from '../components/EditablePhoto'
 
 export default function SetPage() {
   const { id } = useParams<{ id: string }>()
   const set = useMemo(() => (id ? getPhotoSet(id) : undefined), [id])
   const navigate = useNavigate()
   const { consumePendingFlip, setPendingFlip } = useFlipBridge()
-  const { setActiveSetId, registerCloseHandler } = useGallery()
+  const { setActiveSetId, registerCloseHandler, isEditMode, updatePhotoData, getEditedPhoto } = useGallery()
 
   useEffect(() => {
     if (id) setActiveSetId(id)
@@ -78,12 +79,22 @@ export default function SetPage() {
     <section className="set-page">
       <div className="set-header" style={{ minHeight: '100px' }} />
 
-      <div className="set-grid" role="list">
-        {set.photos.slice(1).map((photo) => (
-          <div key={photo.id} className="set-grid-item" role="listitem">
-            <img src={photo.src} alt={photo.alt} loading="lazy" />
+      <div className="set-canvas-container">
+        <div className="set-canvas">
+          <div className="set-grid" role="list">
+            {set.photos.slice(1).map((photo) => {
+              const editedPhoto = getEditedPhoto(photo.id, photo)
+              return (
+                <EditablePhoto
+                  key={photo.id}
+                  photo={editedPhoto}
+                  isEditMode={isEditMode}
+                  onUpdate={updatePhotoData}
+                />
+              )
+            })}
           </div>
-        ))}
+        </div>
       </div>
     </section>
   )
