@@ -585,60 +585,61 @@ export default function HomePage() {
     return () => ctx.revert()
   }, [activeSetId])
 
-  useLayoutEffect(() => {
-    if (!activeSetId) return
-    // Don't apply GSAP Draggable when in edit mode
-    if (isEditMode) return
+  // Individual photo dragging disabled - only canvas dragging is allowed
+  // useLayoutEffect(() => {
+  //   if (!activeSetId) return
+  //   // Don't apply GSAP Draggable when in edit mode
+  //   if (isEditMode) return
 
-    gsap.registerPlugin(Draggable)
-    const scope = setViewRef.current
-    if (!scope) return
+  //   gsap.registerPlugin(Draggable)
+  //   const scope = setViewRef.current
+  //   if (!scope) return
 
-    const ctx = gsap.context(() => {
-      let highestZ = 100
-      const gridItems = scope.querySelectorAll<HTMLElement>('.set-grid-item')
-      gridItems.forEach((item, index) => {
-        const originalScale = gridTransforms[index]?.scale ?? 0.8
+  //   const ctx = gsap.context(() => {
+  //     let highestZ = 100
+  //     const gridItems = scope.querySelectorAll<HTMLElement>('.set-grid-item')
+  //     gridItems.forEach((item, index) => {
+  //       const originalScale = gridTransforms[index]?.scale ?? 0.8
 
-        // Set initial cursor
-        gsap.set(item, { cursor: 'grab' })
+  //       // Set initial cursor
+  //       gsap.set(item, { cursor: 'grab' })
 
-        Draggable.create(item, {
-          type: 'x,y',
-          inertia: true,
-          zIndexBoost: true,
-          onPress: function () {
-            // Disable canvas dragging when dragging individual photos
-            if (canvasDraggableRef.current && canvasDraggableRef.current[0]) {
-              canvasDraggableRef.current[0].disable()
-            }
-            highestZ++
-            gsap.to(this.target, {
-              scale: 1,
-              duration: 0.2,
-              overwrite: 'auto',
-              zIndex: highestZ,
-              cursor: 'grabbing',
-            })
-          },
-          onRelease: function () {
-            // Re-enable canvas dragging after releasing photo
-            if (canvasDraggableRef.current && canvasDraggableRef.current[0]) {
-              canvasDraggableRef.current[0].enable()
-            }
-            gsap.to(this.target, {
-              scale: originalScale,
-              duration: 0.2,
-              overwrite: 'auto',
-              cursor: 'grab',
-            })
-          },
-        })
-      })
-    }, scope)
+  //       Draggable.create(item, {
+  //         type: 'x,y',
+  //         inertia: true,
+  //         zIndexBoost: true,
+  //         onPress: function () {
+  //           // Disable canvas dragging when dragging individual photos
+  //           if (canvasDraggableRef.current && canvasDraggableRef.current[0]) {
+  //             canvasDraggableRef.current[0].disable()
+  //           }
+  //           highestZ++
+  //           gsap.to(this.target, {
+  //             scale: 1,
+  //             duration: 0.2,
+  //             overwrite: 'auto',
+  //             zIndex: highestZ,
+  //             cursor: 'grabbing',
+  //           })
+  //         },
+  //         onRelease: function () {
+  //           // Re-enable canvas dragging after releasing photo
+  //           if (canvasDraggableRef.current && canvasDraggableRef.current[0]) {
+  //             canvasDraggableRef.current[0].enable()
+  //           }
+  //           gsap.to(this.target, {
+  //             scale: originalScale,
+  //             duration: 0.2,
+  //             overwrite: 'auto',
+  //             cursor: 'grab',
+  //           })
+  //         },
+  //       })
+  //     })
+  //   }, scope)
 
-    return () => ctx.revert()
-  }, [activeSetId, gridTransforms, isEditMode])
+  //   return () => ctx.revert()
+  // }, [activeSetId, gridTransforms, isEditMode])
 
   // GSAP-based zoom and pan functionality
   useLayoutEffect(() => {
