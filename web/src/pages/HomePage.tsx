@@ -835,6 +835,7 @@ export default function HomePage() {
       if (!isEditMode) {
         draggable = Draggable.create(canvas, {
           type: 'x,y',
+          bounds: container,
           inertia: true,
           cursor: 'grab',
           activeCursor: 'grabbing',
