@@ -146,7 +146,7 @@ export const photoSets: PhotoSet[] = [
     photos: [ 
       {
         "id": "afvs-1",
-        "src": "/src/assets/afvsshowcase/_MG_2673.jpg",
+        "src": new URL('../assets/afvsshowcase/_MG_2673.jpg', import.meta.url).href,
         "alt": "AFVS Showcase Photo 1",
         "width": 1700,
         "height": 1134,
@@ -155,7 +155,7 @@ export const photoSets: PhotoSet[] = [
       },
       {
         "id": "afvs-2",
-        "src": "/src/assets/afvsshowcase/_MG_3211.jpg",
+        "src": new URL('../assets/afvsshowcase/_MG_3211.jpg', import.meta.url).href,
         "alt": "AFVS Showcase Photo 2",
         "width": 1800,
         "height": 1201,
@@ -164,7 +164,7 @@ export const photoSets: PhotoSet[] = [
       },
       {
         "id": "afvs-3",
-        "src": "/src/assets/afvsshowcase/_MG_3530.jpg",
+        "src": new URL('../assets/afvsshowcase/_MG_3530.jpg', import.meta.url).href,
         "alt": "AFVS Showcase Photo 3",
         "width": 1800,
         "height": 1200,
@@ -173,7 +173,7 @@ export const photoSets: PhotoSet[] = [
       },
       {
         "id": "afvs-4",
-        "src": "/src/assets/afvsshowcase/_MG_3537.jpg",
+        "src": new URL('../assets/afvsshowcase/_MG_3537.jpg', import.meta.url).href,
         "alt": "AFVS Showcase Photo 4",
         "width": 1000,
         "height": 1501,
@@ -182,7 +182,7 @@ export const photoSets: PhotoSet[] = [
       },
       {
         "id": "afvs-5",
-        "src": "/src/assets/afvsshowcase/_MG_4138.jpg",
+        "src": new URL('../assets/afvsshowcase/_MG_4138.jpg', import.meta.url).href,
         "alt": "AFVS Showcase Photo 5",
         "width": 1150,
         "height": 1580,
@@ -191,7 +191,7 @@ export const photoSets: PhotoSet[] = [
       },
       {
         "id": "afvs-6",
-        "src": "/src/assets/afvsshowcase/_MG_4388.jpg",
+        "src": new URL('../assets/afvsshowcase/_MG_4388.jpg', import.meta.url).href,
         "alt": "AFVS Showcase Photo 6",
         "width": 1000,
         "height": 1501,
@@ -200,7 +200,7 @@ export const photoSets: PhotoSet[] = [
       },
       {
         "id": "afvs-7",
-        "src": "/src/assets/afvsshowcase/_MG_4446.jpg",
+        "src": new URL('../assets/afvsshowcase/_MG_4446.jpg', import.meta.url).href,
         "alt": "AFVS Showcase Photo 7",
         "width": 1700,
         "height": 2551,
@@ -209,7 +209,7 @@ export const photoSets: PhotoSet[] = [
       },
       {
         "id": "afvs-8",
-        "src": "/src/assets/afvsshowcase/_MG_4934.jpg",
+        "src": new URL('../assets/afvsshowcase/_MG_4934.jpg', import.meta.url).href,
         "alt": "AFVS Showcase Photo 8",
         "width": 1050,
         "height": 1486,
@@ -218,7 +218,7 @@ export const photoSets: PhotoSet[] = [
       },
       {
         "id": "afvs-9",
-        "src": "/src/assets/afvsshowcase/_MG_5113.jpg",
+        "src": new URL('../assets/afvsshowcase/_MG_5113.jpg', import.meta.url).href,
         "alt": "AFVS Showcase Photo 9",
         "width": 2350,
         "height": 1568,
@@ -227,7 +227,7 @@ export const photoSets: PhotoSet[] = [
       },
       {
         "id": "afvs-10",
-        "src": "/src/assets/afvsshowcase/Kevin Tan_Tree.tiff",
+        "src": /* @vite-ignore */ new URL('../assets/afvsshowcase/Kevin Tan_Tree.tiff', import.meta.url).href,
         "alt": "Kevin Tan Tree Photo",
         "width": 1750,
         "height": 2625,
