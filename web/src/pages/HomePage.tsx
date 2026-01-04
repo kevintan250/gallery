@@ -69,8 +69,8 @@ export default function HomePage() {
     return activeSet.photos.slice(1).map((photo) => ({
       rotation: photo.rotation ?? 0,
       scale: photo.scale ?? 1,
-      x: photo.x ?? 1500,
-      y: photo.y ?? 1500,
+      x: photo.x ?? 7500,
+      y: photo.y ?? 7500,
       width: photo.width,
       height: photo.height,
     }))
@@ -643,27 +643,30 @@ export default function HomePage() {
     if (!canvas || !container) return
 
     // Reset zoom level state
-    setZoomLevel(1)
+    setZoomLevel(0.15)
 
     const ctx = gsap.context(() => {
       // Initialize canvas position and transform
       const containerWidth = container.clientWidth
       const containerHeight = container.clientHeight
       
-      // Photos are positioned around (1500, 1500) in the canvas
-      // Position the canvas so (1500, 1500) appears at the viewport center
-      const offsetX = (containerWidth / 2) - 1500
-      const offsetY = (containerHeight / 2) - 1500
+      // Photos are positioned around (7500, 7500) in the canvas
+      // Position the canvas so (7500, 7500) appears at the viewport center
+      const offsetX = (containerWidth / 2) - 7500
+      const offsetY = (containerHeight / 2) - 7500
+      
+      // Start with a much smaller zoom (0.15) so multiple photos are visible at once
+      const initialZoom = 0.15
       
       gsap.set(canvas, { 
         x: offsetX, 
         y: offsetY, 
-        scale: 1,
+        scale: initialZoom,
         transformOrigin: 'center center'
       })
 
       // Track zoom level in a local variable that the wheel handler can access
-      let currentZoom = 1
+      let currentZoom = initialZoom
 
       // Wheel event for zoom (both vertical and horizontal scroll)
       const handleWheel = (e: WheelEvent) => {
@@ -689,7 +692,7 @@ export default function HomePage() {
         }
         
         const delta = -scrollDelta * sensitivity
-        const newZoom = Math.min(Math.max(0.3, currentZoom + delta), 3)
+        const newZoom = Math.min(Math.max(0.05, currentZoom + delta), 3)
         
         if (newZoom !== currentZoom) {
           currentZoom = newZoom
@@ -734,7 +737,7 @@ export default function HomePage() {
           // Apply exponential scaling for more responsive feel
           const scaleDiff = scale - lastPinchScale
           const zoomDelta = scaleDiff * currentZoom * 2
-          const newZoom = Math.min(Math.max(0.3, currentZoom + zoomDelta), 3)
+          const newZoom = Math.min(Math.max(0.05, currentZoom + zoomDelta), 3)
           
           if (Math.abs(newZoom - currentZoom) > 0.01) {
             currentZoom = newZoom

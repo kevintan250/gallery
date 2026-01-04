@@ -393,8 +393,8 @@
 
 .set-canvas {
   position: relative;
-  width: 3000px;
-  height: 3000px;
+  width: 15000px;
+  height: 15000px;
   will-change: transform;
 }
 
