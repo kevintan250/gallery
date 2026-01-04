@@ -701,7 +701,7 @@ export default function HomePage() {
         }
         
         const delta = -scrollDelta * sensitivity
-        const newZoom = Math.min(Math.max(0.05, currentZoom + delta), 3)
+        const newZoom = Math.min(Math.max(0.1, currentZoom + delta), 3)
         
         if (newZoom !== currentZoom) {
           currentZoom = newZoom
@@ -747,7 +747,7 @@ export default function HomePage() {
           // Apply exponential scaling for more responsive feel
           const scaleDiff = scale - lastPinchScale
           const zoomDelta = scaleDiff * currentZoom * 2
-          const newZoom = Math.min(Math.max(0.05, currentZoom + zoomDelta), 3)
+          const newZoom = Math.min(Math.max(0.1, currentZoom + zoomDelta), 3)
           
           if (Math.abs(newZoom - currentZoom) > 0.01) {
             currentZoom = newZoom
