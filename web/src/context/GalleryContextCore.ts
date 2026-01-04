@@ -13,6 +13,7 @@ export type GalleryContextType = {
   setClosePhase: (phase: ClosePhase) => void
   registerCloseHandler: (handler: () => void) => void
   requestClose: () => void
+  globalMouseRef: React.MutableRefObject<{ x: number; y: number; has: boolean }>
 }
 
 export const GalleryContext = createContext<GalleryContextType | null>(null)
