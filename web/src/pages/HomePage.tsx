@@ -20,6 +20,10 @@ export default function HomePage() {
   const [hoverLabelVisible, setHoverLabelVisible] = useState(false)
   const hoverLabelVisibleRef = useRef(false)
 
+  useEffect(() => {
+    hoverLabelVisibleRef.current = hoverLabelVisible
+  }, [hoverLabelVisible, hoverLabelContent])
+
   const currentCarouselIndexRef = useRef(0)
   const inactivePreviewScale = 0.8
   const basePreviewImgScale = 1.1
@@ -39,7 +43,7 @@ export default function HomePage() {
   const hoverLabelRef = useRef<HTMLDivElement | null>(null)
   const movingPreviewElRef = useRef<HTMLDivElement | null>(null)
   const lastScrollPos = useRef(0)
-  const closingSetIdRef = useRef<string | null>(null)
+  const [closingSetId, setClosingSetId] = useState<string | null>(null)
   const hideAnimationRef = useRef<gsap.core.Tween | null>(null)
 
   type PreviewParallaxFns = {
@@ -316,6 +320,11 @@ export default function HomePage() {
     const scope = rootRef.current
     if (!scope) return
 
+    //  Ensure flags are reset when returning to home view
+    isTransitioningRef.current = false
+    parallaxEnabledRef.current = true
+    setGalleryInteractive(true)
+
     const ctx = gsap.context(() => {
       gsap.set('.hscroll-item', { clearProps: 'transform,opacity' })
       gsap.set('.hscroll-preview', { clearProps: 'transform' })
@@ -345,6 +354,13 @@ export default function HomePage() {
 
       const showHoverLabelForPreview = (previewEl: HTMLElement) => {
         const { title, subtitle } = getMetaFromPreview(previewEl)
+        
+        // Kill any pending hide animation before showing
+        if (hideAnimationRef.current) {
+          hideAnimationRef.current.kill()
+          hideAnimationRef.current = null
+        }
+        
         setHoverLabelContent({ title, subtitle })
         setHoverLabelVisible(true)
         updateLabelPosition()
@@ -849,8 +865,15 @@ export default function HomePage() {
       )
     }, el)
 
-    return () => ctx.revert()
-  }, [hoverLabelVisible, hoverLabelContent.title, hoverLabelContent.subtitle, activeSetId])
+    return () => {
+      // Don't revert if we're still visible - only cleanup the context
+      if (!hoverLabelVisible) {
+        ctx.revert()
+      } else {
+        ctx.kill()
+      }
+    }
+  }, [hoverLabelVisible, hoverLabelContent.title, hoverLabelContent.subtitle])
 
   const openSetInPlace = (setId: string, clickedButton: HTMLButtonElement) => {
     if (isTransitioningRef.current) return
@@ -1282,7 +1305,7 @@ export default function HomePage() {
         gsap.set(movingEl, { opacity: 1 })
         gsap.set(slotImg, { opacity: 0 })
 
-        closingSetIdRef.current = currentSetId
+        setClosingSetId(currentSetId)
         flushSync(() => setActiveSetId(null))
 
         const root = rootRef.current
@@ -1411,7 +1434,7 @@ export default function HomePage() {
             onComplete: () => {
               if (movingEl.parentElement) movingEl.parentElement.removeChild(movingEl)
               
-              closingSetIdRef.current = null
+              setClosingSetId(null)
               
               if (targetImg) gsap.set(targetImg, { clearProps: 'opacity', opacity: 1 })
               gsap.set(slotImg, { clearProps: 'opacity', opacity: 1 })
@@ -1531,6 +1554,26 @@ export default function HomePage() {
   return (
     <>
       <div className="flip-overlay" ref={overlayRef} aria-hidden="true" />
+      
+      {/* Hover label - rendered at top level to avoid overflow:hidden clipping */}
+      <div className="hover-label" ref={hoverLabelRef} aria-hidden="true">
+        <div className="hover-label-inner">
+          <div className="hover-label-row hover-label-title" aria-hidden="true">
+            {hoverLabelContent.title.split('').map((ch, i) => (
+              <span key={`t-${i}`} className="hover-label-char hover-label-char--title">
+                {ch === ' ' ? '\u00A0' : ch}
+              </span>
+            ))}
+          </div>
+          <div className="hover-label-row hover-label-subtitle" aria-hidden="true">
+            {hoverLabelContent.subtitle.split('').map((ch, i) => (
+              <span key={`s-${i}`} className="hover-label-char hover-label-char--subtitle">
+                {ch === ' ' ? '\u00A0' : ch}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {activeSetId ? (
         activeSet ? (
@@ -1591,7 +1634,7 @@ export default function HomePage() {
                 {sets.map((set) => {
                   const preview = getSetPreviewPhoto(set)
                   const flipId = `set-preview-${set.id}`
-                  const isClosing = closingSetIdRef.current === set.id
+                  const isClosing = closingSetId === set.id
 
                   return (
                     <article
@@ -1636,25 +1679,6 @@ export default function HomePage() {
                     </article>
                   )
                 })}
-              </div>
-            </div>
-          </div>
-
-          <div className="hover-label" ref={hoverLabelRef} aria-hidden="true">
-            <div className="hover-label-inner">
-              <div className="hover-label-row hover-label-title" aria-hidden="true">
-                {hoverLabelContent.title.split('').map((ch, i) => (
-                  <span key={`t-${i}`} className="hover-label-char hover-label-char--title">
-                    {ch === ' ' ? '\u00A0' : ch}
-                  </span>
-                ))}
-              </div>
-              <div className="hover-label-row hover-label-subtitle" aria-hidden="true">
-                {hoverLabelContent.subtitle.split('').map((ch, i) => (
-                  <span key={`s-${i}`} className="hover-label-char hover-label-char--subtitle">
-                    {ch === ' ' ? '\u00A0' : ch}
-                  </span>
-                ))}
               </div>
             </div>
           </div>
