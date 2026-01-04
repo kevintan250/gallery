@@ -5,9 +5,10 @@ interface EditablePhotoProps {
   photo: Photo
   isEditMode: boolean
   onUpdate: (photoId: string, data: Partial<Photo>) => void
+  canvasScale?: number
 }
 
-export default function EditablePhoto({ photo, isEditMode, onUpdate }: EditablePhotoProps) {
+export default function EditablePhoto({ photo, isEditMode, onUpdate, canvasScale = 1 }: EditablePhotoProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
@@ -72,19 +73,25 @@ export default function EditablePhoto({ photo, isEditMode, onUpdate }: EditableP
         const deltaX = e.clientX - dragStart.x
         const deltaY = e.clientY - dragStart.y
         
-        const newX = Math.round(dragStart.initialX + deltaX)
-        const newY = Math.round(dragStart.initialY + deltaY)
+        // Adjust for canvas scale - divide by scale to get canvas coordinates
+        const scaledDeltaX = deltaX / canvasScale
+        const scaledDeltaY = deltaY / canvasScale
+        
+        // Snap to nearest 25
+        const newX = Math.round((dragStart.initialX + scaledDeltaX) / 25) * 25
+        const newY = Math.round((dragStart.initialY + scaledDeltaY) / 25) * 25
         
         onUpdate(photo.id, { x: newX, y: newY })
       } else if (isResizing) {
         const deltaX = e.clientX - resizeStart.x
         const deltaY = e.clientY - resizeStart.y
         
-        // Use the larger delta to determine size change
-        const delta = Math.max(deltaX, deltaY)
+        // Use the larger delta to determine size change, adjusted for canvas scale
+        const delta = Math.max(deltaX, deltaY) / canvasScale
         
-        // Calculate new width maintaining aspect ratio
-        const newWidth = Math.max(100, Math.round(resizeStart.initialWidth + delta))
+        // Calculate new width maintaining aspect ratio, snap to nearest 50
+        const calculatedWidth = Math.max(100, resizeStart.initialWidth + delta)
+        const newWidth = Math.round(calculatedWidth / 50) * 50
         const newHeight = Math.round(newWidth / resizeStart.aspectRatio)
         
         onUpdate(photo.id, { width: newWidth, height: newHeight })
@@ -103,7 +110,7 @@ export default function EditablePhoto({ photo, isEditMode, onUpdate }: EditableP
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isDragging, isResizing, dragStart, resizeStart, photo.id, onUpdate])
+  }, [isDragging, isResizing, dragStart, resizeStart, photo.id, onUpdate, canvasScale])
 
   // Deselect when clicking outside (on background)
   useEffect(() => {
@@ -136,6 +143,10 @@ export default function EditablePhoto({ photo, isEditMode, onUpdate }: EditableP
         width: `${width}px`,
         height: `${height}px`,
         cursor: isEditMode ? (isDragging ? 'grabbing' : 'grab') : 'default',
+        borderWidth: (isSelected || isHovered) && isEditMode ? `${5 / canvasScale}px` : undefined,
+        boxShadow: (isSelected || isHovered) && isEditMode 
+          ? `0 ${20 / canvasScale}px ${48 / canvasScale}px rgba(59, 130, 246, 0.5), 0 0 0 ${2 / canvasScale}px rgba(59, 130, 246, 0.2)`
+          : undefined,
       }}
       onMouseDown={handleMouseDownDrag}
       onMouseEnter={() => {
@@ -168,16 +179,16 @@ export default function EditablePhoto({ photo, isEditMode, onUpdate }: EditableP
             onMouseDown={handleMouseDownResize}
             style={{
               position: 'absolute',
-              right: '-24px',
-              bottom: '-24px',
-              width: '56px',
-              height: '56px',
+              right: `${-24 / canvasScale}px`,
+              bottom: `${-24 / canvasScale}px`,
+              width: `${56 / canvasScale}px`,
+              height: `${56 / canvasScale}px`,
               background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-              border: '4px solid white',
+              border: `${4 / canvasScale}px solid white`,
               borderRadius: '50%',
               cursor: 'nwse-resize',
               zIndex: 10,
-              boxShadow: '0 6px 20px rgba(59, 130, 246, 0.8), 0 0 0 3px rgba(59, 130, 246, 0.3)',
+              boxShadow: `0 ${6 / canvasScale}px ${20 / canvasScale}px rgba(59, 130, 246, 0.8), 0 0 0 ${3 / canvasScale}px rgba(59, 130, 246, 0.3)`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -185,17 +196,17 @@ export default function EditablePhoto({ photo, isEditMode, onUpdate }: EditableP
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'scale(1.15)'
-              e.currentTarget.style.boxShadow = '0 8px 24px rgba(59, 130, 246, 1), 0 0 0 4px rgba(59, 130, 246, 0.4)'
+              e.currentTarget.style.boxShadow = `0 ${8 / canvasScale}px ${24 / canvasScale}px rgba(59, 130, 246, 1), 0 0 0 ${4 / canvasScale}px rgba(59, 130, 246, 0.4)`
             }}
             onMouseLeave={(e) => {
               if (!isResizing) {
                 e.currentTarget.style.transform = 'scale(1)'
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.8), 0 0 0 3px rgba(59, 130, 246, 0.3)'
+                e.currentTarget.style.boxShadow = `0 ${6 / canvasScale}px ${20 / canvasScale}px rgba(59, 130, 246, 0.8), 0 0 0 ${3 / canvasScale}px rgba(59, 130, 246, 0.3)`
               }
             }}
           >
             {/* Resize icon */}
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <svg width={24 / canvasScale} height={24 / canvasScale} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="15 3 21 3 21 9"></polyline>
               <polyline points="9 21 3 21 3 15"></polyline>
               <line x1="21" y1="3" x2="14" y2="10"></line>
@@ -208,13 +219,13 @@ export default function EditablePhoto({ photo, isEditMode, onUpdate }: EditableP
             className="photo-info-overlay"
             style={{
               position: 'absolute',
-              top: '8px',
-              left: '8px',
+              top: `${8 / canvasScale}px`,
+              left: `${8 / canvasScale}px`,
               background: 'rgba(0,0,0,0.7)',
               color: 'white',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              fontSize: '11px',
+              padding: `${4 / canvasScale}px ${8 / canvasScale}px`,
+              borderRadius: `${4 / canvasScale}px`,
+              fontSize: `${11 / canvasScale}px`,
               fontFamily: 'monospace',
               pointerEvents: 'none',
               userSelect: 'none',

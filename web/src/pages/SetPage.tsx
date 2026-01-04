@@ -82,7 +82,7 @@ export default function SetPage() {
       <div className="set-canvas-container">
         <div className="set-canvas">
           <div className="set-grid" role="list">
-            {set.photos.slice(1).map((photo) => {
+            {set.photos.map((photo) => {
               const editedPhoto = getEditedPhoto(photo.id, photo)
               return (
                 <EditablePhoto

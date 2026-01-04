@@ -17,6 +17,7 @@ export type PhotoSet = {
   description: string
   accent: string
   photos: Photo[]
+  previewPhotoId?: string
 }
 
 export const photoSets: PhotoSet[] = [
@@ -142,87 +143,98 @@ export const photoSets: PhotoSet[] = [
     description:
       'A collection of featured photography showcasing diverse scenes and moments.',
     accent: '#ff8c42',
-    photos: [
+    photos: [ 
       {
-        id: 'afvs-1',
-        src: '/src/assets/afvsshowcase/_MG_2673.jpg',
-        alt: 'AFVS Showcase Photo 1',
-        width: 4898,
-        height: 3265,
+        "id": "afvs-1",
+        "src": "/src/assets/afvsshowcase/_MG_2673.jpg",
+        "alt": "AFVS Showcase Photo 1",
+        "width": 1700,
+        "height": 1134,
+        "x": 9675,
+        "y": 8117
       },
       {
-        id: 'afvs-2',
-        src: '/src/assets/afvsshowcase/_MG_3211.jpg',
-        alt: 'AFVS Showcase Photo 2',
-        width: 4898,
-        height: 3265,
-        x: 6200,
-        y: 7200,
+        "id": "afvs-2",
+        "src": "/src/assets/afvsshowcase/_MG_3211.jpg",
+        "alt": "AFVS Showcase Photo 2",
+        "width": 1800,
+        "height": 1201,
+        "x": 5800,
+        "y": 9575.5
       },
       {
-        id: 'afvs-3',
-        src: '/src/assets/afvsshowcase/_MG_3530.jpg',
-        alt: 'AFVS Showcase Photo 3',
-        width: 4898,
-        height: 3265,
-        x: 8800,
-        y: 7100,
+        "id": "afvs-3",
+        "src": "/src/assets/afvsshowcase/_MG_3530.jpg",
+        "alt": "AFVS Showcase Photo 3",
+        "width": 1800,
+        "height": 1200,
+        "x": 5800,
+        "y": 8200
       },
       {
-        id: 'afvs-4',
-        src: '/src/assets/afvsshowcase/_MG_3537.jpg',
-        alt: 'AFVS Showcase Photo 4',
-        width: 3265,
-        height: 4898,
-        x: 6300,
-        y: 9400,
+        "id": "afvs-4",
+        "src": "/src/assets/afvsshowcase/_MG_3537.jpg",
+        "alt": "AFVS Showcase Photo 4",
+        "width": 1000,
+        "height": 1501,
+        "x": 8800,
+        "y": 6575.5
       },
       {
-        id: 'afvs-5',
-        src: '/src/assets/afvsshowcase/_MG_4138.jpg',
-        alt: 'AFVS Showcase Photo 5',
-        width: 2376,
-        height: 3265,
-        x: 8700,
-        y: 9200,
+        "id": "afvs-5",
+        "src": "/src/assets/afvsshowcase/_MG_4138.jpg",
+        "alt": "AFVS Showcase Photo 5",
+        "width": 1150,
+        "height": 1580,
+        "x": 3600,
+        "y": 6615
       },
       {
-        id: 'afvs-6',
-        src: '/src/assets/afvsshowcase/_MG_4388.jpg',
-        alt: 'AFVS Showcase Photo 6',
-        width: 3265,
-        height: 4898,
-        x: 10800,
-        y: 7300,
+        "id": "afvs-6",
+        "src": "/src/assets/afvsshowcase/_MG_4388.jpg",
+        "alt": "AFVS Showcase Photo 6",
+        "width": 1000,
+        "height": 1501,
+        "x": 10025,
+        "y": 6575.5
       },
       {
-        id: 'afvs-7',
-        src: '/src/assets/afvsshowcase/_MG_4446.jpg',
-        alt: 'AFVS Showcase Photo 7',
-        width: 3265,
-        height: 4898,
-        x: 10600,
-        y: 9500,
+        "id": "afvs-7",
+        "src": "/src/assets/afvsshowcase/_MG_4446.jpg",
+        "alt": "AFVS Showcase Photo 7",
+        "width": 1700,
+        "height": 2551,
+        "x": 3850,
+        "y": 8875.5
       },
       {
-        id: 'afvs-8',
-        src: '/src/assets/afvsshowcase/_MG_4934.jpg',
-        alt: 'AFVS Showcase Photo 8',
-        width: 1907,
-        height: 2701,
-        x: 6100,
-        y: 11700,
+        "id": "afvs-8",
+        "src": "/src/assets/afvsshowcase/_MG_4934.jpg",
+        "alt": "AFVS Showcase Photo 8",
+        "width": 1050,
+        "height": 1486,
+        "x": 7500,
+        "y": 6568
       },
       {
-        id: 'afvs-9',
-        src: '/src/assets/afvsshowcase/_MG_5113.jpg',
-        alt: 'AFVS Showcase Photo 9',
-        width: 4898,
-        height: 3265,
-        x: 8500,
-        y: 11600,
+        "id": "afvs-9",
+        "src": "/src/assets/afvsshowcase/_MG_5113.jpg",
+        "alt": "AFVS Showcase Photo 9",
+        "width": 2350,
+        "height": 1568,
+        "x": 5525,
+        "y": 6609
       },
-    ],
+      {
+        "id": "afvs-10",
+        "src": "/src/assets/afvsshowcase/Kevin Tan_Tree.tiff",
+        "alt": "Kevin Tan Tree Photo",
+        "width": 1750,
+        "height": 2625,
+        "x": 7775,
+        "y": 8837.5
+      }
+    ]
   },
 ]
 
@@ -231,5 +243,9 @@ export function getPhotoSet(id: string): PhotoSet | undefined {
 }
 
 export function getSetPreviewPhoto(set: PhotoSet): Photo {
+  if (set.previewPhotoId) {
+    const preview = set.photos.find(p => p.id === set.previewPhotoId)
+    if (preview) return preview
+  }
   return set.photos[0]
 }

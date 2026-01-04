@@ -39,6 +39,7 @@ export default function HomePage() {
   const canvasContainerRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLDivElement | null>(null)
   const [, setZoomLevel] = useState(1)
+  const [currentZoom, setCurrentZoom] = useState(0.15)
   const canvasDraggableRef = useRef<Draggable[] | null>(null)
   const isTransitioningRef = useRef(false)
   const parallaxEnabledRef = useRef(true)
@@ -70,7 +71,7 @@ export default function HomePage() {
 
   const gridTransforms = useMemo(() => {
     if (!activeSet) return []
-    return activeSet.photos.slice(1).map((photo) => ({
+    return activeSet.photos.map((photo) => ({
       rotation: photo.rotation ?? 0,
       scale: photo.scale ?? 1,
       x: photo.x ?? 7500,
@@ -650,6 +651,7 @@ export default function HomePage() {
 
     // Reset zoom level state
     setZoomLevel(0.15)
+    setCurrentZoom(0.15)
 
     const ctx = gsap.context(() => {
       // Initialize canvas position and transform
@@ -703,6 +705,7 @@ export default function HomePage() {
         if (newZoom !== currentZoom) {
           currentZoom = newZoom
           setZoomLevel(newZoom)
+          setCurrentZoom(newZoom)
           gsap.to(canvas, {
             scale: newZoom,
             duration: e.ctrlKey ? 0.1 : 0.3,  // Faster response for pinch
@@ -749,6 +752,7 @@ export default function HomePage() {
             currentZoom = newZoom
             lastPinchScale = scale
             setZoomLevel(newZoom)
+            setCurrentZoom(newZoom)
             gsap.to(canvas, {
               scale: newZoom,
               duration: 0.1,
@@ -1608,8 +1612,45 @@ export default function HomePage() {
                 className="set-canvas" 
                 ref={canvasRef}
               >
+                {/* Grid overlay for edit mode */}
+                {isEditMode && (
+                  <svg
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '15000px',
+                      height: '15000px',
+                      pointerEvents: 'none',
+                      zIndex: 0,
+                    }}
+                  >
+                    {/* Grid lines every 500px */}
+                    <defs>
+                      <pattern id="grid" width="500" height="500" patternUnits="userSpaceOnUse">
+                        <path d="M 500 0 L 0 0 0 500" fill="none" stroke="rgba(59, 130, 246, 0.15)" strokeWidth={1 / currentZoom}/>
+                      </pattern>
+                    </defs>
+                    <rect width="15000" height="15000" fill="url(#grid)" />
+                    
+                    {/* Center marker at (7500, 7500) */}
+                    <g transform="translate(7500, 7500)">
+                      {/* Crosshair */}
+                      <line x1={-40 / currentZoom} y1="0" x2={40 / currentZoom} y2="0" stroke="#3b82f6" strokeWidth={2 / currentZoom} />
+                      <line x1="0" y1={-40 / currentZoom} x2="0" y2={40 / currentZoom} stroke="#3b82f6" strokeWidth={2 / currentZoom} />
+                      {/* Center circle */}
+                      <circle cx="0" cy="0" r={8 / currentZoom} fill="white" stroke="#3b82f6" strokeWidth={2 / currentZoom} />
+                      <circle cx="0" cy="0" r={3 / currentZoom} fill="#3b82f6" />
+                      {/* Label */}
+                      <text x="0" y={-50 / currentZoom} textAnchor="middle" fill="#3b82f6" fontSize={14 / currentZoom} fontWeight="600" fontFamily="monospace">
+                        CENTER (7500, 7500)
+                      </text>
+                    </g>
+                  </svg>
+                )}
+                
                 <div className="set-grid" role="list">
-                  {activeSet.photos.slice(1).map((photo, index) => {
+                  {activeSet.photos.map((photo, index) => {
                     const editedPhoto = getEditedPhoto(photo.id, photo)
                     const t = gridTransforms[index]
                     const width = editedPhoto.width ?? t?.width ?? 300
@@ -1651,6 +1692,7 @@ export default function HomePage() {
                           photo={photoWithPosition}
                           isEditMode={isEditMode}
                           onUpdate={handleUpdate}
+                          canvasScale={currentZoom}
                         />
                       )
                     }
