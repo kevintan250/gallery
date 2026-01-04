@@ -704,11 +704,31 @@ export default function HomePage() {
         const newZoom = Math.min(Math.max(0.1, currentZoom + delta), 3)
         
         if (newZoom !== currentZoom) {
+          // Calculate mouse position relative to container
+          const rect = container.getBoundingClientRect()
+          const mouseX = e.clientX - rect.left
+          const mouseY = e.clientY - rect.top
+          
+          // Get current position and scale from the element
+          const currentX = gsap.getProperty(canvas, 'x') as number
+          const currentY = gsap.getProperty(canvas, 'y') as number
+          const currentScale = gsap.getProperty(canvas, 'scale') as number
+          
+          // Calculate new position to keep point under mouse stationary
+          // With transformOrigin: center center (7500, 7500)
+          // formula: newPos = mousePos - 7500 - (mousePos - currentPos - 7500) * (newScale / oldScale)
+          const scaleRatio = newZoom / currentScale
+          const newX = mouseX - 7500 - (mouseX - currentX - 7500) * scaleRatio
+          const newY = mouseY - 7500 - (mouseY - currentY - 7500) * scaleRatio
+
           currentZoom = newZoom
           setZoomLevel(newZoom)
           setCurrentZoom(newZoom)
+          
           gsap.to(canvas, {
             scale: newZoom,
+            x: newX,
+            y: newY,
             duration: e.ctrlKey ? 0.1 : 0.3,  // Faster response for pinch
             ease: 'power2.out',
             overwrite: 'auto'
@@ -750,12 +770,29 @@ export default function HomePage() {
           const newZoom = Math.min(Math.max(0.1, currentZoom + zoomDelta), 3)
           
           if (Math.abs(newZoom - currentZoom) > 0.01) {
+            // Calculate pinch center relative to container
+            const rect = container.getBoundingClientRect()
+            const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left
+            const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top
+            
+            // Get current position and scale
+            const currentX = gsap.getProperty(canvas, 'x') as number
+            const currentY = gsap.getProperty(canvas, 'y') as number
+            const currentScale = gsap.getProperty(canvas, 'scale') as number
+            
+            // Calculate new position
+            const scaleRatio = newZoom / currentScale
+            const newX = centerX - 7500 - (centerX - currentX - 7500) * scaleRatio
+            const newY = centerY - 7500 - (centerY - currentY - 7500) * scaleRatio
+
             currentZoom = newZoom
             lastPinchScale = scale
             setZoomLevel(newZoom)
             setCurrentZoom(newZoom)
             gsap.to(canvas, {
               scale: newZoom,
+              x: newX,
+              y: newY,
               duration: 0.1,
               ease: 'power2.out',
               overwrite: 'auto'
